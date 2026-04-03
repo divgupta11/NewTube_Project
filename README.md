@@ -1,4 +1,4 @@
-﻿# YouTube Clone (MERN)
+# YouTube Clone (MERN)
 
 Full stack YouTube Clone built with React + Node/Express + MongoDB.
 
@@ -29,7 +29,14 @@ PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/youtube_clone
 JWT_SECRET=replace_with_strong_secret
 CLIENT_URL=http://localhost:5173
+GEMINI_API_KEY=your_real_gemini_key
+GEMINI_MODEL=gemini-2.0-flash
 ```
+
+Gemini integration notes:
+- `GEMINI_API_KEY` is required for real AI answers.
+- `GOOGLE_API_KEY` is also supported as an alias if `GEMINI_API_KEY` is empty.
+- Without a key, AI runs in `local-fallback` mode.
 
 ### Frontend (`client/.env`)
 

@@ -1,9 +1,15 @@
 const Video = require("../models/Video");
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-const NOTEBOOKLM_ENDPOINT = process.env.NOTEBOOKLM_ENDPOINT || "";
-const NOTEBOOKLM_API_KEY = process.env.NOTEBOOKLM_API_KEY || "";
+const getGeminiApiKey = () => (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
+const getGeminiModel = () => process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const getNotebookLmEndpoint = () => process.env.NOTEBOOKLM_ENDPOINT || "";
+const getNotebookLmApiKey = () => process.env.NOTEBOOKLM_API_KEY || "";
+const isGeminiConfigured = () => Boolean(getGeminiApiKey());
+const getGeminiModelCandidates = () => {
+  const configured = getGeminiModel();
+  const fallbacks = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest"];
+  return [configured, ...fallbacks].filter((model, index, arr) => model && arr.indexOf(model) === index);
+};
 
 const cleanArray = (value) => (Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean) : []);
 
@@ -21,16 +27,19 @@ const buildNotebookContext = (video) => {
 };
 
 const callNotebookLM = async (context) => {
-  if (!NOTEBOOKLM_ENDPOINT || !NOTEBOOKLM_API_KEY) {
+  const endpoint = getNotebookLmEndpoint();
+  const apiKey = getNotebookLmApiKey();
+
+  if (!endpoint || !apiKey) {
     return null;
   }
 
   try {
-    const response = await fetch(NOTEBOOKLM_ENDPOINT, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${NOTEBOOKLM_API_KEY}`
+        Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         source: "newtube-video",
@@ -46,33 +55,49 @@ const callNotebookLM = async (context) => {
 };
 
 const callGemini = async (prompt, temperature = 0.4) => {
-  if (!GEMINI_API_KEY) {
+  const apiKey = getGeminiApiKey();
+
+  if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured");
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature,
-          topP: 0.9
-        }
-      })
-    }
-  );
+  const modelsToTry = getGeminiModelCandidates();
+  let lastError = "Gemini request failed";
 
-  if (!response.ok) {
+  for (const model of modelsToTry) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature,
+            topP: 0.9
+          }
+        })
+      }
+    );
+
+    if (response.ok) {
+      const payload = await response.json();
+      const text = payload?.candidates?.[0]?.content?.parts?.map((part) => part?.text || "").join("\n") || "";
+      return text.trim();
+    }
+
     const errText = await response.text();
-    throw new Error(`Gemini request failed: ${response.status} ${errText}`);
+    lastError = `Gemini request failed on model ${model}: ${response.status} ${errText}`;
+
+    // Try next fallback model for common model-level failures.
+    if ([404, 429, 500, 503].includes(response.status)) {
+      continue;
+    }
+
+    throw new Error(lastError);
   }
 
-  const payload = await response.json();
-  const text = payload?.candidates?.[0]?.content?.parts?.map((part) => part?.text || "").join("\n") || "";
-  return text.trim();
+  throw new Error(lastError);
 };
 
 const parseJsonFromText = (text) => {
@@ -130,7 +155,7 @@ Transcript: ${context.transcript || "N/A"}
 Notebook Data: ${notebookData ? JSON.stringify(notebookData).slice(0, 4000) : "Not available"}
 `;
 
-  if (!GEMINI_API_KEY) {
+  if (!isGeminiConfigured()) {
     return fallbackInsights(context);
   }
 
@@ -191,9 +216,9 @@ const askQuestionAboutVideo = async (video, question) => {
     `Learning Mode: ${video.aiLearningMode || "N/A"}`
   ].join("\n");
 
-  if (!GEMINI_API_KEY) {
+  if (!isGeminiConfigured()) {
     return {
-      answer: `AI is running in fallback mode. Based on the video context, this video is about: ${video.aiSummary || context.description || context.title}`,
+      answer: `Gemini is not configured on the server yet. Please set GEMINI_API_KEY in server/.env. Fallback summary: ${video.aiSummary || context.description || context.title}`,
       provider: "local-fallback"
     };
   }
@@ -215,5 +240,6 @@ ${question}`;
 module.exports = {
   buildNotebookContext,
   generateAndStoreVideoInsights,
-  askQuestionAboutVideo
+  askQuestionAboutVideo,
+  isGeminiConfigured
 };

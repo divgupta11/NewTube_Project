@@ -1,7 +1,7 @@
 const Video = require("../models/Video");
 const Comment = require("../models/Comment");
 const User = require("../models/User");
-const { generateAndStoreVideoInsights, askQuestionAboutVideo } = require("../services/aiService");
+const { generateAndStoreVideoInsights, askQuestionAboutVideo, isGeminiConfigured } = require("../services/aiService");
 
 const hasUser = (arr, userId) => (arr || []).some((id) => id.toString() === userId);
 
@@ -87,13 +87,19 @@ const getVideoById = async (req, res) => {
     payload.isDisliked = userId ? hasUser(payload.dislikes, userId) : false;
 
     if (userId) {
-      await User.updateOne(
-        { _id: req.user._id },
-        {
-          $pull: { watchHistory: video._id },
-          $push: { watchHistory: { $each: [video._id], $position: 0, $slice: 300 } }
-        }
-      );
+      try {
+        // Avoid MongoDB update path conflict by splitting pull/push into separate operations.
+        await User.updateOne(
+          { _id: req.user._id },
+          { $pull: { watchHistory: video._id } }
+        );
+        await User.updateOne(
+          { _id: req.user._id },
+          { $push: { watchHistory: { $each: [video._id], $position: 0, $slice: 300 } } }
+        );
+      } catch (historyError) {
+        console.error("Watch history update failed:", historyError.message);
+      }
     }
 
     return res.json(payload);
@@ -114,6 +120,7 @@ const getVideoAI = async (req, res) => {
     return res.json({
       status: video.aiStatus || "pending",
       provider: video.aiProvider || "",
+      geminiConfigured: isGeminiConfigured(),
       summary: video.aiSummary || "",
       keyPoints: video.aiKeyPoints || [],
       notes: video.aiNotes || [],

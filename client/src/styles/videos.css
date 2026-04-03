@@ -125,6 +125,24 @@
   background: #000;
 }
 
+.gemini-toggle-btn {
+  margin-top: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  min-height: 40px;
+  padding: 0 0.9rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.gemini-toggle-btn:hover {
+  color: var(--yt-red);
+}
+
 .watch-actions {
   margin: 0.8rem 0;
   display: flex;
@@ -192,9 +210,61 @@
   background: #ef4444;
 }
 
+.owner-video-controls {
+  margin: 0.45rem 0 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+  padding: 0.75rem;
+}
+
+.owner-video-controls-title {
+  margin: 0 0 0.55rem;
+  color: var(--muted);
+  font-size: 0.84rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.owner-video-controls-actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.owner-edit-btn,
+.owner-delete-btn {
+  border-radius: 999px;
+  min-height: 38px;
+  padding: 0 1rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.owner-edit-btn:hover {
+  color: var(--yt-red);
+}
+
+.owner-delete-btn {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.owner-delete-btn:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
 .edit-panel {
   display: grid;
   gap: 0.6rem;
+  margin-top: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
 }
 
 .edit-panel input,
@@ -205,6 +275,40 @@
   padding: 0.7rem;
   background: var(--bg-soft);
   color: var(--text);
+}
+
+.owner-actions {
+  margin-top: 0.2rem;
+}
+
+.edit-save-btn,
+.edit-cancel-btn {
+  min-height: 38px;
+  border-radius: 999px;
+  padding: 0 1rem;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.edit-save-btn {
+  background: var(--yt-red);
+  border-color: var(--yt-red);
+  color: #fff;
+}
+
+.edit-save-btn:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.edit-cancel-btn {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.edit-cancel-btn:hover {
+  color: var(--yt-red);
 }
 
 .video-description-text {

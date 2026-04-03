@@ -88,6 +88,9 @@ const VideoAIAssistant = ({ videoId }) => {
       </div>
 
       {error && <p className="empty-text">{error}</p>}
+      {data && data.geminiConfigured === false && (
+        <p className="empty-text">Gemini is not configured on backend. Add <code>GEMINI_API_KEY</code> in <code>server/.env</code>.</p>
+      )}
 
       {data?.status === "pending" && <p className="empty-text">AI is analyzing this video in the background.</p>}
       {data?.status === "error" && <p className="empty-text">AI analysis failed: {data?.error || "Unknown error"}</p>}

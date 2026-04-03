@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import { MdThumbUpOffAlt, MdThumbDownOffAlt, MdShare } from "react-icons/md";
+import { MdThumbUpOffAlt, MdThumbDownOffAlt, MdShare, MdAutoAwesome } from "react-icons/md";
 import VideoCard from "../components/VideoCard";
 import VideoAIAssistant from "../components/VideoAIAssistant";
 
@@ -48,6 +48,7 @@ const WatchVideo = ({ user }) => {
   const [editDescription, setEditDescription] = useState("");
   const [manageMessage, setManageMessage] = useState("");
   const [playerError, setPlayerError] = useState("");
+  const [showGeminiAssistant, setShowGeminiAssistant] = useState(false);
 
   const isOwner = useMemo(() => {
     if (!user || !video) return false;
@@ -125,6 +126,10 @@ const WatchVideo = ({ user }) => {
 
     loadData();
   }, [videoId, user?._id]);
+
+  useEffect(() => {
+    setShowGeminiAssistant(false);
+  }, [videoId]);
 
   const submitComment = async (event) => {
     event.preventDefault();
@@ -341,6 +346,15 @@ const WatchVideo = ({ user }) => {
           </p>
         )}
 
+        <button
+          className="gemini-toggle-btn ripple"
+          type="button"
+          onClick={() => setShowGeminiAssistant((prev) => !prev)}
+        >
+          <MdAutoAwesome size={18} />
+          {showGeminiAssistant ? "Hide Gemini" : "Ask Gemini About This Video"}
+        </button>
+
         {isEditing ? (
           <div className="edit-panel">
             <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="Video title" />
@@ -351,8 +365,8 @@ const WatchVideo = ({ user }) => {
               placeholder="Video description"
             />
             <div className="owner-actions">
-              <button className="ripple" onClick={handleSaveEdit} type="button">Save</button>
-              <button className="ripple" onClick={() => setIsEditing(false)} type="button">Cancel</button>
+              <button className="ripple edit-save-btn" onClick={handleSaveEdit} type="button">Save</button>
+              <button className="ripple edit-cancel-btn" onClick={() => setIsEditing(false)} type="button">Cancel</button>
             </div>
           </div>
         ) : (
@@ -370,20 +384,12 @@ const WatchVideo = ({ user }) => {
                 {subscribed ? "Subscribed" : "Subscribe"}
               </button>
             )}
-            {isOwner && (
-              <>
-                <button className="ripple" onClick={() => setIsEditing((prev) => !prev)} type="button">
-                  {isEditing ? "Close" : "Edit"}
-                </button>
-                <button className="ripple danger-action" onClick={handleDeleteVideo} type="button">Delete</button>
-              </>
-            )}
           </div>
         </div>
 
         {!isEditing && <p className="video-description-text">{video.description}</p>}
 
-        <VideoAIAssistant videoId={videoId} />
+        {showGeminiAssistant && <VideoAIAssistant videoId={videoId} />}
 
         <div className="watch-actions">
           <span>{video.views || 0} views</span>
@@ -401,6 +407,18 @@ const WatchVideo = ({ user }) => {
         {shareMessage && <p className="empty-text">{shareMessage}</p>}
         {subscribeMessage && <p className="empty-text">{subscribeMessage}</p>}
         {manageMessage && <p className="empty-text">{manageMessage}</p>}
+
+        {isOwner && (
+          <div className="owner-video-controls">
+            <p className="owner-video-controls-title">Video Management</p>
+            <div className="owner-video-controls-actions">
+              <button className="ripple owner-edit-btn" onClick={() => setIsEditing((prev) => !prev)} type="button">
+                {isEditing ? "Close Editor" : "Edit Video"}
+              </button>
+              <button className="ripple owner-delete-btn" onClick={handleDeleteVideo} type="button">Delete Video</button>
+            </div>
+          </div>
+        )}
 
         <div className="comment-section">
           <h3>Comments</h3>
