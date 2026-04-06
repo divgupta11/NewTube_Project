@@ -1,4 +1,7 @@
 const bcrypt = require("bcryptjs");
+const path = require("path");
+const util = require("util");
+const { execFile } = require("child_process");
 const Video = require("../models/Video");
 const Comment = require("../models/Comment");
 const User = require("../models/User");
@@ -19,17 +22,65 @@ const {
 const hasUser = (arr, userId) => (arr || []).some((id) => id.toString() === userId);
 const maxHistoryItems = 300;
 const isMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
+const execFileAsync = util.promisify(execFile);
+const SHORT_VIDEO_MAX_SECONDS = 60;
+
+const parseDurationFromBody = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.round(parsed);
+};
+
+const getDurationWithFfprobe = async (videoFilePath) => {
+  const probeArgs = [
+    "-v",
+    "error",
+    "-show_entries",
+    "format=duration",
+    "-of",
+    "default=noprint_wrappers=1:nokey=1",
+    videoFilePath
+  ];
+
+  const { stdout } = await execFileAsync("ffprobe", probeArgs, { windowsHide: true });
+  const duration = Number(String(stdout || "").trim());
+  if (!Number.isFinite(duration) || duration <= 0) return null;
+  return Math.round(duration);
+};
+
+const resolveUploadedVideoDuration = async ({ videoFileName, bodyDurationSeconds }) => {
+  const normalizedFileName = path.basename(String(videoFileName || ""));
+  const videoFilePath = process.env.VERCEL
+    ? path.join("/tmp", "uploads", "videos", normalizedFileName)
+    : path.join(process.cwd(), "uploads", "videos", normalizedFileName);
+
+  try {
+    const ffprobeDuration = await getDurationWithFfprobe(videoFilePath);
+    if (ffprobeDuration) return ffprobeDuration;
+  } catch (error) {
+    console.warn("ffprobe duration check failed, using fallback duration if provided:", error.message);
+  }
+
+  return parseDurationFromBody(bodyDurationSeconds);
+};
 
 const createVideo = async (req, res) => {
   try {
-    const { title, description, tags, transcript, isShort } = req.body;
+    const { title, description, tags, transcript, durationSeconds } = req.body;
 
     if (!title || !req.files?.video || !req.files?.thumbnail) {
       return res.status(400).json({ message: "Title, video, and thumbnail are required" });
     }
 
     const parsedTags = tags ? tags.split(",").map((tag) => tag.trim()).filter(Boolean) : [];
-    const shortFlag = String(isShort || "").toLowerCase() === "true" || parsedTags.some((tag) => tag.toLowerCase() === "shorts");
+    const measuredDurationSeconds = await resolveUploadedVideoDuration({
+      videoFileName: req.files.video[0].filename,
+      bodyDurationSeconds: durationSeconds
+    });
+
+    const shortFlag = Number(measuredDurationSeconds || 0) > 0
+      ? measuredDurationSeconds <= SHORT_VIDEO_MAX_SECONDS
+      : parsedTags.some((tag) => tag.toLowerCase() === "shorts");
     const videoPath = `/uploads/videos/${req.files.video[0].filename}`;
     const thumbnailPath = `/uploads/thumbnails/${req.files.thumbnail[0].filename}`;
 
@@ -39,6 +90,7 @@ const createVideo = async (req, res) => {
       description,
       transcript: typeof transcript === "string" ? transcript.trim() : "",
       tags: parsedTags,
+      durationSeconds: measuredDurationSeconds || 0,
       isShort: shortFlag,
       isTrending: false,
       videoUrl: videoPath,
@@ -66,17 +118,20 @@ const createVideo = async (req, res) => {
 
 const getVideos = async (req, res) => {
   try {
-    const { search } = req.query;
-    let query = {};
+    const { search, includeShorts } = req.query;
+    const query = {};
+    const shouldIncludeShorts = String(includeShorts || "").toLowerCase() === "true";
+
+    if (!shouldIncludeShorts) {
+      query.isShort = { $ne: true };
+    }
 
     if (search) {
-      query = {
-        $or: [
+      query.$or = [
           { title: { $regex: search, $options: "i" } },
           { description: { $regex: search, $options: "i" } },
           { tags: { $regex: search, $options: "i" } }
-        ]
-      };
+      ];
     }
 
     const videos = await Video.find(query)

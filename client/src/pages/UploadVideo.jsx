@@ -14,9 +14,44 @@ const UploadVideo = ({ user, onOpenLogin }) => {
   const [transcript, setTranscript] = useState("");
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState(null);
 
   const videoLabel = useMemo(() => (videoFile ? videoFile.name : "Drag and drop video or click to browse"), [videoFile]);
   const thumbLabel = useMemo(() => (thumbFile ? thumbFile.name : "Choose thumbnail image"), [thumbFile]);
+
+  const readVideoDuration = (file) => new Promise((resolve) => {
+    const video = document.createElement("video");
+    const objectUrl = URL.createObjectURL(file);
+
+    const cleanup = () => {
+      URL.revokeObjectURL(objectUrl);
+      video.removeAttribute("src");
+      video.load();
+    };
+
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      const raw = Number(video.duration);
+      cleanup();
+      resolve(Number.isFinite(raw) && raw > 0 ? Math.round(raw) : null);
+    };
+    video.onerror = () => {
+      cleanup();
+      resolve(null);
+    };
+    video.src = objectUrl;
+  });
+
+  const handleVideoChange = async (file) => {
+    setVideoFile(file);
+    if (!file) {
+      setVideoDurationSeconds(null);
+      return;
+    }
+
+    const duration = await readVideoDuration(file);
+    setVideoDurationSeconds(duration);
+  };
 
   const handleUpload = async () => {
     setMessage("");
@@ -50,6 +85,9 @@ const UploadVideo = ({ user, onOpenLogin }) => {
     formData.append("transcript", transcript.trim());
     formData.append("video", videoFile);
     formData.append("thumbnail", thumbFile);
+    if (Number.isFinite(videoDurationSeconds) && videoDurationSeconds > 0) {
+      formData.append("durationSeconds", String(videoDurationSeconds));
+    }
 
     try {
       setUploading(true);
@@ -93,7 +131,11 @@ const UploadVideo = ({ user, onOpenLogin }) => {
       <h1>Upload Video</h1>
       <div className="upload-card">
         <label className="drop-zone">
-          <input type="file" accept=".mp4,.webm,video/mp4,video/webm" onChange={(event) => setVideoFile(event.target.files?.[0] || null)} />
+          <input
+            type="file"
+            accept=".mp4,.webm,video/mp4,video/webm"
+            onChange={(event) => handleVideoChange(event.target.files?.[0] || null)}
+          />
           <span>{videoLabel}</span>
         </label>
 

@@ -15,11 +15,12 @@ const {
   getMySubscriptions
 } = require("../controllers/userController");
 const { protect, optionalProtect } = require("../middleware/authMiddleware");
+const profileUpload = require("../middleware/profileUploadMiddleware");
 
 const router = express.Router();
 
 router.get("/profile", protect, getMyProfile);
-router.patch("/profile", protect, updateProfileDetails);
+router.patch("/profile", protect, profileUpload.single("avatar"), updateProfileDetails);
 router.post("/playlists", protect, createPlaylist);
 router.post("/playlists/:playlistId/videos/:videoId", protect, addVideoToPlaylist);
 router.delete("/playlists/:playlistId/videos/:videoId", protect, removeVideoFromPlaylist);

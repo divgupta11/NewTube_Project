@@ -9,6 +9,7 @@ const videoSchema = new mongoose.Schema(
     videoUrl: { type: String, required: true },
     thumbnailUrl: { type: String, required: true },
     tags: [{ type: String }],
+    durationSeconds: { type: Number, default: 0, min: 0 },
     isShort: { type: Boolean, default: false },
     isTrending: { type: Boolean, default: false },
     views: { type: Number, default: 0 },

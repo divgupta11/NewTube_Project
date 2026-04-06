@@ -8,6 +8,7 @@ const serverUrl = import.meta.env.VITE_SERVER_URL || "";
 
 const TABS = [
   { key: "videos", label: "Videos" },
+  { key: "shorts", label: "Shorts" },
   { key: "liked", label: "Liked Videos" },
   { key: "playlists", label: "Playlists" },
   { key: "history", label: "History" },
@@ -46,8 +47,18 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
   const [playlistName, setPlaylistName] = useState("");
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
 
   const savedSet = useMemo(() => new Set((savedVideos || []).map((video) => video._id)), [savedVideos]);
+  const regularUploadedVideos = useMemo(
+    () => (uploadedVideos || []).filter((video) => !video?.isShort),
+    [uploadedVideos]
+  );
+  const uploadedShorts = useMemo(
+    () => (uploadedVideos || []).filter((video) => Boolean(video?.isShort)),
+    [uploadedVideos]
+  );
 
   const selectedPlaylist = useMemo(
     () => playlists.find((playlist) => playlist._id === selectedPlaylistId) || playlists[0] || null,
@@ -83,6 +94,8 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
       setWatchHistory(Array.isArray(data.watchHistory) ? data.watchHistory : []);
       setSubscriptions(Array.isArray(data.subscriptions) ? data.subscriptions : []);
       setDescriptionDraft(data.user?.channelDescription || "");
+      setAvatarFile(null);
+      setAvatarPreview("");
       setSelectedPlaylistId((prev) => prev || data.playlists?.[0]?._id || "");
       setError("");
 
@@ -107,18 +120,48 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
     hydrateDownloaded();
   }, []);
 
+  useEffect(() => () => {
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+  }, [avatarPreview]);
+
   const saveDescription = async () => {
     setMessage("");
     try {
-      await axios.patch(
-        `${apiBase}/users/profile`,
-        { channelDescription: descriptionDraft },
-        { headers: authHeaders() }
-      );
-      setMessage("Channel description updated.");
-      setProfileUser((prev) => ({ ...prev, channelDescription: descriptionDraft.trim() }));
+      const formData = new FormData();
+      formData.append("channelDescription", descriptionDraft);
+      if (avatarFile) {
+        formData.append("avatar", avatarFile);
+      }
+
+      const { data } = await axios.patch(`${apiBase}/users/profile`, formData, {
+        headers: {
+          ...authHeaders(),
+          "Content-Type": "multipart/form-data"
+        }
+      });
+
+      setMessage(avatarFile ? "Profile updated." : "Channel description updated.");
+      const nextUser = {
+        ...(profileUser || user || {}),
+        channelDescription: descriptionDraft.trim(),
+        avatar: data?.avatar || profileUser?.avatar || user?.avatar || ""
+      };
+
+      setProfileUser((prev) => ({
+        ...prev,
+        ...nextUser
+      }));
+
+      if (typeof onUserUpdated === "function") {
+        onUserUpdated(nextUser);
+      }
+
+      setAvatarFile(null);
+      setAvatarPreview("");
     } catch (err) {
-      setMessage(err.response?.data?.message || "Failed to update description.");
+      setMessage(err.response?.data?.message || "Failed to update profile.");
     }
   };
 
@@ -319,11 +362,36 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
   return (
     <section className="profile-page">
       <header className="profile-header-card">
-        <img
-          className="profile-cover-avatar"
-          src={profileUser?.avatar || "https://i.pravatar.cc/200?img=12"}
-          alt={profileUser?.username || "Profile"}
-        />
+        <label className="profile-avatar-upload-shell" htmlFor="profile-avatar-input">
+          <input
+            id="profile-avatar-input"
+            className="profile-avatar-input"
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            onChange={(event) => {
+              const file = event.target.files?.[0] || null;
+              if (avatarPreview) {
+                URL.revokeObjectURL(avatarPreview);
+              }
+              setAvatarFile(file);
+              setAvatarPreview(file ? URL.createObjectURL(file) : "");
+            }}
+          />
+          {(avatarPreview || profileUser?.avatar) ? (
+            <img
+              className="profile-cover-avatar"
+              src={avatarPreview || profileUser?.avatar}
+              alt={profileUser?.username || "Profile"}
+            />
+          ) : (
+            <div className="profile-avatar-placeholder">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9 4.5 10.5 3h3L15 4.5h2.5A2.5 2.5 0 0 1 20 7v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17V7a2.5 2.5 0 0 1 2.5-2.5H9Zm3 4a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Zm0 2a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z" />
+              </svg>
+              <span>Upload Photo</span>
+            </div>
+          )}
+        </label>
         <div className="profile-header-main">
           <h1>{profileUser?.username || "My Channel"}</h1>
           {profileUser?.email && <p className="profile-sub-line">{profileUser.email}</p>}
@@ -340,7 +408,9 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
               value={descriptionDraft}
               onChange={(event) => setDescriptionDraft(event.target.value)}
             />
-            <button type="button" className="profile-primary-btn profile-compact-btn" onClick={saveDescription}>Save Description</button>
+            <button type="button" className="profile-primary-btn profile-compact-btn" onClick={saveDescription}>
+              {avatarFile ? "Save Profile" : "Save Description"}
+            </button>
           </div>
         </div>
       </header>
@@ -363,7 +433,14 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
       {activeTab === "videos" && (
         <div>
           <h2 className="section-title">Your Uploaded Videos</h2>
-          {renderVideoGrid(uploadedVideos)}
+          {renderVideoGrid(regularUploadedVideos)}
+        </div>
+      )}
+
+      {activeTab === "shorts" && (
+        <div>
+          <h2 className="section-title">Your Shorts</h2>
+          {renderVideoGrid(uploadedShorts)}
         </div>
       )}
 

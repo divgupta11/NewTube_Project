@@ -254,11 +254,16 @@ const updateProfileDetails = async (req, res) => {
       user.channelDescription = channelDescription.trim();
     }
 
+    if (req.file?.filename) {
+      user.avatar = `/uploads/avatars/${req.file.filename}`;
+    }
+
     await user.save();
 
     return res.json({
       message: "Profile updated",
-      channelDescription: user.channelDescription || ""
+      channelDescription: user.channelDescription || "",
+      avatar: user.avatar || ""
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to update profile", error: error.message });
