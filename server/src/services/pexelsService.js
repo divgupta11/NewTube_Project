@@ -1,7 +1,6 @@
 const PEXELS_BASE = "https://api.pexels.com/videos";
-const FALLBACK_PEXELS_KEY = "5gTSSTjEhBbX308NsmCQOTNp5OUtz8B8kQhS1rAwGisFHrSl3B5TWgDt";
 
-const getPexelsApiKey = () => (process.env.PEXELS_API_KEY || FALLBACK_PEXELS_KEY || "").trim();
+const getPexelsApiKey = () => (process.env.PEXELS_API_KEY || "").trim();
 
 const slugToTitle = (value) => {
   if (!value) return "Pexels Video";

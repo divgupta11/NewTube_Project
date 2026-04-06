@@ -66,6 +66,25 @@ npm run dev
 Frontend: `http://localhost:5173`
 Backend: `http://localhost:5000`
 
+## Deploy On Vercel
+
+Deploy from the repository root (`Youtube_clone`).
+
+Required Vercel environment variables:
+
+- `MONGO_URI`
+- `JWT_SECRET`
+- `CLIENT_URL` (set to your Vercel frontend URL, e.g. `https://your-app.vercel.app`)
+- `PEXELS_API_KEY`
+
+Optional environment variables:
+
+- `GEMINI_API_KEY`
+- `GOOGLE_API_KEY`
+- `GEMINI_MODEL`
+- `NOTEBOOKLM_ENDPOINT`
+- `NOTEBOOKLM_API_KEY`
+
 ## API Endpoints
 
 ### Auth
