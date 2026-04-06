@@ -1,7 +1,7 @@
-﻿import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { AiOutlineUser } from "react-icons/ai";
 
-const serverUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:5000";
+const serverUrl = import.meta.env.VITE_SERVER_URL || "";
 
 const formatViews = (views) => {
   const number = Number(views || 0);
@@ -34,7 +34,7 @@ const VideoCard = ({ video }) => {
         <div className="video-meta">
           <h3>{video.title}</h3>
           <p>{channelName}</p>
-          <span>{formatViews(video.views)} • {new Date(video.createdAt || Date.now()).toLocaleDateString()}</span>
+          <span>{formatViews(video.views)} | {new Date(video.createdAt || Date.now()).toLocaleDateString()}</span>
         </div>
       </div>
     </Link>

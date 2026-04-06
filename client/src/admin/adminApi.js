@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const apiBase = import.meta.env.VITE_API_URL || "/api";
 const adminTokenKey = "newtube_admin_token";
 
 export const getAdminToken = () => localStorage.getItem(adminTokenKey);

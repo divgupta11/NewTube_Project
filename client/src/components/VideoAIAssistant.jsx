@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { MdAutoAwesome, MdRefresh, MdQuiz, MdNotes } from "react-icons/md";
 
-const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const apiBase = import.meta.env.VITE_API_URL || "/api";
 
 const authHeaders = () => {
   const token = localStorage.getItem("token");
@@ -11,6 +11,7 @@ const authHeaders = () => {
 
 const VideoAIAssistant = ({ videoId }) => {
   const [data, setData] = useState(null);
+  const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [question, setQuestion] = useState("");
@@ -23,9 +24,11 @@ const VideoAIAssistant = ({ videoId }) => {
     try {
       const { data: payload } = await axios.get(`${apiBase}/videos/${videoId}/ai`, { headers: authHeaders() });
       setData(payload);
+      const { data: healthPayload } = await axios.get(`${apiBase}/videos/ai/health`, { headers: authHeaders() });
+      setHealth(healthPayload);
     } catch (err) {
       const message = !err.response
-        ? "Network error. Please ensure backend is running on port 5000."
+        ? "Network error. Please ensure backend is running."
         : err.response?.data?.message || "Unable to load AI assistant.";
       setError(message);
     } finally {
@@ -91,6 +94,9 @@ const VideoAIAssistant = ({ videoId }) => {
       {data && data.geminiConfigured === false && (
         <p className="empty-text">Gemini is not configured on backend. Add <code>GEMINI_API_KEY</code> in <code>server/.env</code>.</p>
       )}
+      {health && health.ok === false && health.reason && (
+        <p className="empty-text">Gemini status: {health.reason}</p>
+      )}
 
       {data?.status === "pending" && <p className="empty-text">AI is analyzing this video in the background.</p>}
       {data?.status === "error" && <p className="empty-text">AI analysis failed: {data?.error || "Unknown error"}</p>}
@@ -132,7 +138,7 @@ const VideoAIAssistant = ({ videoId }) => {
         {answer && <p className="ai-answer">{answer}</p>}
       </article>
 
-      <small className="empty-text">Provider: {data?.provider || "local-fallback"}</small>
+      <small className="empty-text">Provider: {data?.provider || "not-available"}</small>
     </section>
   );
 };

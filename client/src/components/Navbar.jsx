@@ -54,9 +54,18 @@ const Navbar = ({ user, theme, onToggleTheme, onMenuClick, onOpenLogin, onOpenSi
 
         {user ? (
           <>
-            <button className="profile-chip" type="button" aria-label="Profile">
-              <AiOutlineUser size={18} />
-              <span>{user.name?.split(" ")[0] || "User"}</span>
+            <button
+              className="profile-chip"
+              type="button"
+              aria-label="Profile"
+              onClick={() => navigate("/profile")}
+            >
+              {user.avatar ? (
+                <img src={user.avatar} alt={user.username || user.name || "User"} className="profile-chip-avatar" />
+              ) : (
+                <AiOutlineUser size={18} />
+              )}
+              <span>{user.username?.split(" ")[0] || user.name?.split(" ")[0] || "User"}</span>
             </button>
             <button className="auth-btn" type="button" onClick={onLogout}>Logout</button>
           </>

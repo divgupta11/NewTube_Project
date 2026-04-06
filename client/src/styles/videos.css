@@ -1,4 +1,4 @@
-﻿.section-title {
+.section-title {
   margin: 0 0 1rem;
   font-size: 1.35rem;
 }
@@ -336,6 +336,10 @@
 .modal-submit:hover,
 .social-btn:hover {
   color: var(--yt-red);
+}
+
+.social-btn-disabled {
+  opacity: 0.75;
 }
 
 .watch-actions button.active-like {

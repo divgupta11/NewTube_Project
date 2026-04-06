@@ -8,6 +8,11 @@ import SignupModal from "./components/SignupModal";
 import Home from "./pages/Home";
 import WatchVideo from "./pages/WatchVideo";
 import UploadVideo from "./pages/UploadVideo";
+import Profile from "./pages/Profile";
+import History from "./pages/History";
+import Subscriptions from "./pages/Subscriptions";
+import Shorts from "./pages/Shorts";
+import Trending from "./pages/Trending";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import AdminLayout from "./admin/AdminLayout";
 import AdminLogin from "./admin/AdminLogin";
@@ -20,7 +25,7 @@ import AdminSettings from "./admin/pages/AdminSettings";
 import "./styles/admin.css";
 
 const MOBILE_BREAKPOINT = 768;
-const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const apiBase = import.meta.env.VITE_API_URL || "/api";
 
 const UserAppShell = ({
   user,
@@ -32,7 +37,8 @@ const UserAppShell = ({
   onOpenLogin,
   onOpenSignup,
   onLogout,
-  onCloseMobileSidebar
+  onCloseMobileSidebar,
+  onUserUpdated
 }) => (
   <div className="app-container">
     <Navbar
@@ -55,8 +61,16 @@ const UserAppShell = ({
       <main className="main-content" onClick={() => mobileSidebarOpen && onCloseMobileSidebar()}>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/shorts" element={<Shorts />} />
+          <Route path="/trending" element={<Trending />} />
+          <Route path="/history" element={<History user={user} onOpenLogin={onOpenLogin} />} />
+          <Route path="/subscriptions" element={<Subscriptions user={user} onOpenLogin={onOpenLogin} />} />
           <Route path="/watch/:videoId" element={<WatchVideo user={user} />} />
           <Route path="/upload" element={<UploadVideo user={user} onOpenLogin={onOpenLogin} />} />
+          <Route
+            path="/profile"
+            element={<Profile user={user} onOpenLogin={onOpenLogin} onUserUpdated={onUserUpdated} />}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -143,6 +157,11 @@ const App = () => {
     localStorage.removeItem("yt_user");
   };
 
+  const updateUserProfile = (updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem("yt_user", JSON.stringify(updatedUser));
+  };
+
   return (
     <>
       <Routes>
@@ -177,6 +196,7 @@ const App = () => {
               onOpenSignup={openSignup}
               onLogout={logoutUser}
               onCloseMobileSidebar={() => setMobileSidebarOpen(false)}
+              onUserUpdated={updateUserProfile}
             />
           }
         />

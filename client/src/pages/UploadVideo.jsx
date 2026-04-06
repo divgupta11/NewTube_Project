@@ -1,8 +1,8 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const apiBase = import.meta.env.VITE_API_URL || "/api";
 const SUPPORTED_VIDEO_TYPES = ["video/mp4", "video/webm"];
 
 const UploadVideo = ({ user, onOpenLogin }) => {

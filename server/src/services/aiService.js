@@ -7,7 +7,7 @@ const getNotebookLmApiKey = () => process.env.NOTEBOOKLM_API_KEY || "";
 const isGeminiConfigured = () => Boolean(getGeminiApiKey());
 const getGeminiModelCandidates = () => {
   const configured = getGeminiModel();
-  const fallbacks = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest"];
+  const fallbacks = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"];
   return [configured, ...fallbacks].filter((model, index, arr) => model && arr.indexOf(model) === index);
 };
 
@@ -89,6 +89,10 @@ const callGemini = async (prompt, temperature = 0.4) => {
     const errText = await response.text();
     lastError = `Gemini request failed on model ${model}: ${response.status} ${errText}`;
 
+    if (response.status === 403 && /leaked|permission_denied|permission denied/i.test(errText)) {
+      throw new Error("Gemini API key is invalid or blocked. Generate a new key in Google AI Studio and update server/.env.");
+    }
+
     // Try next fallback model for common model-level failures.
     if ([404, 429, 500, 503].includes(response.status)) {
       continue;
@@ -98,6 +102,19 @@ const callGemini = async (prompt, temperature = 0.4) => {
   }
 
   throw new Error(lastError);
+};
+
+const checkGeminiHealth = async () => {
+  if (!isGeminiConfigured()) {
+    return { ok: false, provider: "local-fallback", reason: "missing_api_key" };
+  }
+
+  try {
+    await callGemini("Reply with exactly: OK", 0);
+    return { ok: true, provider: "gemini", reason: "connected" };
+  } catch (error) {
+    return { ok: false, provider: "gemini", reason: error.message };
+  }
 };
 
 const parseJsonFromText = (text) => {
@@ -241,5 +258,6 @@ module.exports = {
   buildNotebookContext,
   generateAndStoreVideoInsights,
   askQuestionAboutVideo,
-  isGeminiConfigured
+  isGeminiConfigured,
+  checkGeminiHealth
 };

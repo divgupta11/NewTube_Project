@@ -1,4 +1,4 @@
-﻿const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
 const videoSchema = new mongoose.Schema(
   {
@@ -9,6 +9,8 @@ const videoSchema = new mongoose.Schema(
     videoUrl: { type: String, required: true },
     thumbnailUrl: { type: String, required: true },
     tags: [{ type: String }],
+    isShort: { type: Boolean, default: false },
+    isTrending: { type: Boolean, default: false },
     views: { type: Number, default: 0 },
     likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     dislikes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],

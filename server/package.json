@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \" No tests configured\\",
+    "test": "echo \"No tests configured\"",
     "dev": "nodemon index.js",
     "start": "node index.js"
   },
@@ -25,3 +25,4 @@
     "nodemon": "^3.1.14"
   }
 }
+

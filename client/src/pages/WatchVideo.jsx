@@ -5,8 +5,8 @@ import { MdThumbUpOffAlt, MdThumbDownOffAlt, MdShare, MdAutoAwesome } from "reac
 import VideoCard from "../components/VideoCard";
 import VideoAIAssistant from "../components/VideoAIAssistant";
 
-const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const serverUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:5000";
+const apiBase = import.meta.env.VITE_API_URL || "/api";
+const serverUrl = import.meta.env.VITE_SERVER_URL || "";
 
 const authHeaders = () => {
   const token = localStorage.getItem("token");
@@ -56,6 +56,8 @@ const WatchVideo = ({ user }) => {
     return ownerId?.toString() === user._id?.toString();
   }, [user, video]);
 
+  const isExternalVideo = useMemo(() => Boolean(video?.isExternal), [video]);
+
   useEffect(() => {
     const loadData = async () => {
       setLoadingVideo(true);
@@ -78,9 +80,9 @@ const WatchVideo = ({ user }) => {
         setSubscribersCount(countValue(videoData?.user?.subscribers));
 
         const channelId = videoData?.user?._id || videoData?.owner?._id || videoData?.owner;
-        if (channelId && headers.Authorization) {
+        if (channelId && headers.Authorization && !videoData?.isExternal) {
           try {
-            const { data: channelData } = await axios.get(`${apiBase}/channel/${channelId}`, { headers });
+            const { data: channelData } = await axios.get(`${apiBase}/users/channel/${channelId}`, { headers });
             setSubscribed(Boolean(channelData.isSubscribed));
           } catch {
             setSubscribed(false);
@@ -96,7 +98,7 @@ const WatchVideo = ({ user }) => {
         if (status === 404) {
           setVideoError("Video not found.");
         } else if (!error?.response) {
-          setVideoError("Network error. Please ensure backend is running on port 5000.");
+          setVideoError("Network error. Please ensure backend is running.");
         } else {
           setVideoError(error?.response?.data?.message || "Unable to load this video.");
         }
@@ -133,6 +135,10 @@ const WatchVideo = ({ user }) => {
 
   const submitComment = async (event) => {
     event.preventDefault();
+    if (isExternalVideo) {
+      setLikeError("Comments are not available for external videos.");
+      return;
+    }
     if (!newComment.trim()) return;
 
     const token = localStorage.getItem("token");
@@ -157,6 +163,10 @@ const WatchVideo = ({ user }) => {
 
   const handleLike = async () => {
     setLikeError("");
+    if (isExternalVideo) {
+      setLikeError("Likes are not available for external videos.");
+      return;
+    }
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -181,6 +191,10 @@ const WatchVideo = ({ user }) => {
 
   const handleDislike = async () => {
     setLikeError("");
+    if (isExternalVideo) {
+      setLikeError("Dislikes are not available for external videos.");
+      return;
+    }
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -232,6 +246,10 @@ const WatchVideo = ({ user }) => {
 
   const handleSubscribe = async () => {
     setSubscribeMessage("");
+    if (isExternalVideo) {
+      setSubscribeMessage("Subscriptions are not available for external videos.");
+      return;
+    }
     const channelId = video?.user?._id || video?.owner?._id || video?.owner;
     const token = localStorage.getItem("token");
 
@@ -246,7 +264,7 @@ const WatchVideo = ({ user }) => {
     }
 
     try {
-      const { data } = await axios.post(`${apiBase}/channel/${channelId}/subscribe`, {}, { headers: authHeaders() });
+      const { data } = await axios.post(`${apiBase}/users/subscribe/${channelId}`, {}, { headers: authHeaders() });
       setSubscribed(Boolean(data.subscribed));
       setSubscribersCount(Number(data.subscribersCount || 0));
     } catch (error) {
@@ -394,12 +412,16 @@ const WatchVideo = ({ user }) => {
         <div className="watch-actions">
           <span>{video.views || 0} views</span>
           <div>
-            <button className={`ripple ${liked ? "active-like" : ""}`} onClick={handleLike} type="button">
-              <MdThumbUpOffAlt size={18} /> {likesCount}
-            </button>
-            <button className={`ripple ${disliked ? "active-dislike" : ""}`} onClick={handleDislike} type="button">
-              <MdThumbDownOffAlt size={18} /> {dislikesCount}
-            </button>
+            {!isExternalVideo && (
+              <>
+                <button className={`ripple ${liked ? "active-like" : ""}`} onClick={handleLike} type="button">
+                  <MdThumbUpOffAlt size={18} /> {likesCount}
+                </button>
+                <button className={`ripple ${disliked ? "active-dislike" : ""}`} onClick={handleDislike} type="button">
+                  <MdThumbDownOffAlt size={18} /> {dislikesCount}
+                </button>
+              </>
+            )}
             <button className="ripple" onClick={handleShare} type="button"><MdShare size={18} /> Share</button>
           </div>
         </div>
@@ -420,25 +442,27 @@ const WatchVideo = ({ user }) => {
           </div>
         )}
 
-        <div className="comment-section">
-          <h3>Comments</h3>
-          <form onSubmit={submitComment} className="comment-form">
-            <input
-              placeholder="Add a comment"
-              value={newComment}
-              onChange={(event) => setNewComment(event.target.value)}
-            />
-            <button className="ripple" type="submit">Post</button>
-          </form>
-          <div className="comment-list">
-            {comments.map((comment) => (
-              <article key={comment._id} className="comment-item">
-                <p className="comment-name">{comment.user?.username || comment.user?.name || "User"}</p>
-                <p>{comment.commentText || comment.text}</p>
-              </article>
-            ))}
+        {!isExternalVideo && (
+          <div className="comment-section">
+            <h3>Comments</h3>
+            <form onSubmit={submitComment} className="comment-form">
+              <input
+                placeholder="Add a comment"
+                value={newComment}
+                onChange={(event) => setNewComment(event.target.value)}
+              />
+              <button className="ripple" type="submit">Post</button>
+            </form>
+            <div className="comment-list">
+              {comments.map((comment) => (
+                <article key={comment._id} className="comment-item">
+                  <p className="comment-name">{comment.user?.username || comment.user?.name || "User"}</p>
+                  <p>{comment.commentText || comment.text}</p>
+                </article>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <aside className="watch-side">

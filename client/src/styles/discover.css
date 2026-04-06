@@ -1,0 +1,237 @@
+.section-title-spaced {
+  margin-top: 1.25rem;
+}
+
+.shorts-page {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.shorts-scroll-area {
+  height: calc(100vh - 120px);
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  display: grid;
+  gap: 0.85rem;
+  padding-right: 0.2rem;
+}
+
+.shorts-slide {
+  min-height: calc(100vh - 120px);
+  scroll-snap-align: start;
+  display: grid;
+  place-items: center;
+}
+
+.shorts-video-shell {
+  width: min(96vw, 460px);
+  height: calc(100vh - 145px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+  position: relative;
+  box-shadow: var(--shadow);
+}
+
+.short-video-player {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.shorts-overlay-left {
+  position: absolute;
+  left: 0.8rem;
+  right: 4.8rem;
+  bottom: 0.8rem;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.65);
+}
+
+.shorts-channel {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #f5f5f5;
+}
+
+.shorts-author-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.shorts-author-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.shorts-overlay-left h3 {
+  margin: 0.25rem 0 0.55rem;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.shorts-open-link {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: #fff;
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.shorts-overlay-right {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.8rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.shorts-overlay-right button {
+  width: 66px;
+  min-height: 62px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(20, 20, 20, 0.62);
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  gap: 0.2rem;
+  padding: 0.35rem;
+}
+
+.shorts-overlay-right button:hover {
+  border-color: #fff;
+}
+
+.shorts-overlay-right button span {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.shorts-description-panel,
+.shorts-comments-panel {
+  position: absolute;
+  left: 0.65rem;
+  right: 0.65rem;
+  top: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 12px;
+  background: rgba(15, 15, 15, 0.82);
+  color: #fff;
+  padding: 0.7rem;
+  z-index: 3;
+}
+
+.shorts-description-panel h4,
+.shorts-comments-panel h4 {
+  margin: 0 0 0.45rem;
+}
+
+.shorts-description-panel p {
+  margin: 0;
+  color: #e5e5e5;
+  font-size: 0.9rem;
+}
+
+.shorts-comments-list {
+  max-height: 140px;
+  overflow: auto;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.shorts-comments-list article p {
+  margin: 0.2rem 0 0;
+  color: #f2f2f2;
+  font-size: 0.86rem;
+}
+
+.shorts-comment-form {
+  margin-top: 0.5rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.45rem;
+}
+
+.shorts-comment-form input {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 0.45rem 0.55rem;
+}
+
+.shorts-comment-form button {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 0 0.7rem;
+  cursor: pointer;
+}
+
+.shorts-footer-note {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.shorts-hint {
+  text-align: center;
+  color: var(--muted);
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .shorts-scroll-area {
+    height: calc(100vh - 140px);
+  }
+
+  .shorts-slide {
+    min-height: calc(100vh - 140px);
+  }
+
+  .shorts-video-shell {
+    width: min(100%, 420px);
+    height: calc(100vh - 170px);
+  }
+}
+
+@media (max-width: 600px) {
+  .shorts-scroll-area {
+    height: calc(100vh - 150px);
+  }
+
+  .shorts-slide {
+    min-height: calc(100vh - 150px);
+  }
+
+  .shorts-video-shell {
+    width: 100%;
+    height: calc(100vh - 175px);
+    border-radius: 12px;
+  }
+
+  .shorts-overlay-right {
+    right: 0.45rem;
+  }
+
+  .shorts-overlay-right button {
+    width: 60px;
+    min-height: 58px;
+  }
+}

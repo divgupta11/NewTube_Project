@@ -1,12 +1,22 @@
-﻿const multer = require("multer");
+const fs = require("fs");
+const multer = require("multer");
 const path = require("path");
+
+const baseUploadsDir = process.env.VERCEL
+  ? path.join("/tmp", "uploads")
+  : path.join(process.cwd(), "uploads");
+const videosDir = path.join(baseUploadsDir, "videos");
+const thumbnailsDir = path.join(baseUploadsDir, "thumbnails");
+
+fs.mkdirSync(videosDir, { recursive: true });
+fs.mkdirSync(thumbnailsDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     if (file.fieldname === "video") {
-      cb(null, "uploads/videos");
+      cb(null, videosDir);
     } else {
-      cb(null, "uploads/thumbnails");
+      cb(null, thumbnailsDir);
     }
   },
   filename: (req, file, cb) => {
@@ -41,5 +51,3 @@ const upload = multer({
 });
 
 module.exports = upload;
-
-

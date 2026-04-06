@@ -1,7 +1,7 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import axios from "axios";
 
-const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const apiBase = import.meta.env.VITE_API_URL || "/api";
 
 const SignupModal = ({ onClose, onSwitch, onSignup }) => {
   const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
@@ -32,7 +32,7 @@ const SignupModal = ({ onClose, onSwitch, onSignup }) => {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} type="button">×</button>
+        <button className="modal-close" onClick={onClose} type="button">&times;</button>
         <h2>Signup</h2>
         <form onSubmit={handleSubmit} className="modal-form">
           <input
@@ -68,6 +68,24 @@ const SignupModal = ({ onClose, onSwitch, onSignup }) => {
             {loading ? "Creating account..." : "Signup"}
           </button>
         </form>
+        <div className="social-row">
+          <button
+            type="button"
+            className="social-btn ripple social-btn-disabled"
+            title="Google signup is not configured yet"
+            onClick={() => setError("Google signup is not configured yet.")}
+          >
+            Google (Coming Soon)
+          </button>
+          <button
+            type="button"
+            className="social-btn ripple social-btn-disabled"
+            title="GitHub signup is not configured yet"
+            onClick={() => setError("GitHub signup is not configured yet.")}
+          >
+            GitHub (Coming Soon)
+          </button>
+        </div>
         <p className="switch-line">
           Already have an account? <button onClick={onSwitch} type="button">Login</button>
         </p>
@@ -77,3 +95,4 @@ const SignupModal = ({ onClose, onSwitch, onSignup }) => {
 };
 
 export default SignupModal;
+
