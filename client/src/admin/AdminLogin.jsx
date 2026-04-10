@@ -6,7 +6,7 @@ import { adminLoginRequest, setAdminToken } from "./adminApi";
 const AdminLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [form, setForm] = useState({ email: "divyanshi15@gmail.com", password: "" });
+  const [form, setForm] = useState({ email: "divyanshi15@gmail.com", password: "123" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
