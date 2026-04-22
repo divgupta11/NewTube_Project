@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import VideoCard from "../components/VideoCard";
+import { resolvePublicUrl } from "../utils/publicUrl";
 
 const apiBase = import.meta.env.VITE_API_URL || "/api";
-const serverUrl = import.meta.env.VITE_SERVER_URL || "";
 
 const authHeaders = () => {
   const token = localStorage.getItem("token");
@@ -37,7 +37,7 @@ const History = ({ user, onOpenLogin }) => {
       return;
     }
     load();
-  }, [user?._id]);
+  }, [user]);
 
   const removeHistory = async (videoId) => {
     await axios.delete(`${apiBase}/users/history/${videoId}`, { headers: authHeaders() });
@@ -90,7 +90,7 @@ const History = ({ user, onOpenLogin }) => {
       ) : (
         <div className="profile-video-grid">
           {videos.map((video) => {
-            const url = video.videoUrl?.startsWith("http") ? video.videoUrl : `${serverUrl}${video.videoUrl || ""}`;
+            const url = resolvePublicUrl(video.videoUrl || video.url);
             return (
               <article key={video._id} className="profile-video-cell">
                 <VideoCard video={video} />

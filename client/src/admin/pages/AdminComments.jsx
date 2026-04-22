@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MdDelete } from "react-icons/md";
 import { deleteCommentById, fetchComments } from "../adminApi";
 
@@ -9,7 +9,7 @@ const AdminComments = () => {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [error, setError] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setError("");
     try {
       const data = await fetchComments({ page, limit: 12, search });
@@ -18,11 +18,12 @@ const AdminComments = () => {
     } catch (err) {
       setError(err.response?.data?.message || "Failed to fetch comments");
     }
-  };
+  }, [page, search]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
-  }, [page]);
+  }, [load]);
 
   const onSearch = (event) => {
     event.preventDefault();

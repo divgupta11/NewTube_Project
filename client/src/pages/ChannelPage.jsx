@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import api from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import VideoCard from "../components/VideoCard";
+import { resolvePublicUrl } from "../utils/publicUrl";
 
 const ChannelPage = () => {
   const { channelId } = useParams();
@@ -44,7 +45,7 @@ const ChannelPage = () => {
   return (
     <section>
       <div className="channel-hero">
-        <img src={channel.avatar} alt={channel.username} />
+        <img src={resolvePublicUrl(channel.avatar)} alt={channel.username} />
         <div>
           <h1>{channel.username}</h1>
           <p>{channel.subscribersCount} subscribers</p>

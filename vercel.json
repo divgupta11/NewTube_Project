@@ -3,6 +3,11 @@
   "installCommand": "npm run install:all",
   "buildCommand": "npm run build",
   "outputDirectory": "client/dist",
+  "functions": {
+    "api/[...all].js": {
+      "maxDuration": 60
+    }
+  },
   "routes": [
     {
       "src": "/uploads/(.*)",

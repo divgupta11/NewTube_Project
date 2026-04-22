@@ -1,10 +1,12 @@
 const bcrypt = require("bcryptjs");
+const fs = require("fs");
 const path = require("path");
 const util = require("util");
 const { execFile } = require("child_process");
 const Video = require("../models/Video");
 const Comment = require("../models/Comment");
 const User = require("../models/User");
+const Notification = require("../models/Notification");
 const ExternalVideoInteraction = require("../models/ExternalVideoInteraction");
 const {
   fetchTrendingFromPexels,
@@ -12,18 +14,13 @@ const {
   fetchPexelsVideoById,
   checkPexelsHealth
 } = require("../services/pexelsService");
-const {
-  generateAndStoreVideoInsights,
-  askQuestionAboutVideo,
-  isGeminiConfigured,
-  checkGeminiHealth
-} = require("../services/aiService");
 
 const hasUser = (arr, userId) => (arr || []).some((id) => id.toString() === userId);
 const maxHistoryItems = 300;
 const isMongoId = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
 const execFileAsync = util.promisify(execFile);
 const SHORT_VIDEO_MAX_SECONDS = 60;
+const maxNotifications = 50;
 
 const parseDurationFromBody = (value) => {
   const parsed = Number(value);
@@ -53,6 +50,14 @@ const resolveUploadedVideoDuration = async ({ videoFileName, bodyDurationSeconds
   const videoFilePath = process.env.VERCEL
     ? path.join("/tmp", "uploads", "videos", normalizedFileName)
     : path.join(process.cwd(), "uploads", "videos", normalizedFileName);
+
+  if (process.env.VERCEL) {
+    return parseDurationFromBody(bodyDurationSeconds);
+  }
+
+  if (!fs.existsSync(videoFilePath)) {
+    return parseDurationFromBody(bodyDurationSeconds);
+  }
 
   try {
     const ffprobeDuration = await getDurationWithFfprobe(videoFilePath);
@@ -94,18 +99,51 @@ const createVideo = async (req, res) => {
       isShort: shortFlag,
       isTrending: false,
       videoUrl: videoPath,
-      thumbnailUrl: thumbnailPath,
-      aiStatus: "pending"
+      thumbnailUrl: thumbnailPath
     });
 
+    const subscriberIds = Array.isArray(req.user.subscribers) ? req.user.subscribers : [];
+    if (subscriberIds.length) {
+      const notification = {
+        channelId: req.user._id,
+        videoId: video._id,
+        channelName: req.user.username || "Channel",
+        videoTitle: video.title,
+        thumbnailUrl: thumbnailPath,
+        watchUrl: `/watch/${video._id}`,
+        isRead: false,
+        createdAt: new Date(),
+        readAt: null
+      };
+
+      await User.updateMany(
+        { _id: { $in: subscriberIds } },
+        {
+          $push: {
+            notifications: {
+              $each: [notification],
+              $position: 0,
+              $slice: maxNotifications
+            }
+          }
+        }
+      );
+    }
+
+    // Subscriptions notification trigger
     setTimeout(async () => {
       try {
-        await generateAndStoreVideoInsights(video._id);
+        const uploader = await User.findById(req.user._id).select("subscribers");
+        if (uploader && Array.isArray(uploader.subscribers) && uploader.subscribers.length > 0) {
+          const notifications = uploader.subscribers.map((subscriberId) => ({
+            user: subscriberId,
+            channel: req.user._id,
+            video: video._id
+          }));
+          await Notification.insertMany(notifications);
+        }
       } catch (error) {
-        await Video.updateOne(
-          { _id: video._id },
-          { aiStatus: "error", aiError: error.message }
-        );
+        console.error("Failed to trigger subscription notifications:", error.message);
       }
     }, 0);
 
@@ -325,87 +363,12 @@ const getVideoById = async (req, res) => {
   }
 };
 
-const getVideoAI = async (req, res) => {
-  try {
-    const video = await Video.findById(req.params.id).select(
-      "aiStatus aiProvider aiSummary aiKeyPoints aiNotes aiLearningMode aiError aiLastProcessedAt"
-    );
-    if (!video) {
-      return res.status(404).json({ message: "Video not found" });
-    }
-
-    return res.json({
-      status: video.aiStatus || "pending",
-      provider: video.aiProvider || "",
-      geminiConfigured: isGeminiConfigured(),
-      summary: video.aiSummary || "",
-      keyPoints: video.aiKeyPoints || [],
-      notes: video.aiNotes || [],
-      learningMode: video.aiLearningMode || "",
-      error: video.aiError || "",
-      updatedAt: video.aiLastProcessedAt || null
-    });
-  } catch (error) {
-    return res.status(500).json({ message: "Failed to fetch AI insights", error: error.message });
-  }
-};
-
-const getGeminiAIHealth = async (req, res) => {
-  try {
-    const health = await checkGeminiHealth();
-    return res.json(health);
-  } catch (error) {
-    return res.status(500).json({ message: "Failed to check Gemini health", error: error.message });
-  }
-};
-
 const getPexelsAPIHealth = async (req, res) => {
   try {
     const health = await checkPexelsHealth();
     return res.json(health);
   } catch (error) {
     return res.status(500).json({ message: "Failed to check Pexels health", error: error.message });
-  }
-};
-
-const analyzeVideoAI = async (req, res) => {
-  try {
-    const video = await Video.findById(req.params.id);
-    if (!video) {
-      return res.status(404).json({ message: "Video not found" });
-    }
-
-    video.aiStatus = "pending";
-    video.aiError = "";
-    await video.save();
-
-    const payload = await generateAndStoreVideoInsights(video._id);
-    return res.json(payload);
-  } catch (error) {
-    await Video.updateOne(
-      { _id: req.params.id },
-      { aiStatus: "error", aiError: error.message }
-    );
-    return res.status(500).json({ message: "Failed to analyze video with AI", error: error.message });
-  }
-};
-
-const askVideoAI = async (req, res) => {
-  try {
-    const { question } = req.body;
-    if (!question || !String(question).trim()) {
-      return res.status(400).json({ message: "Question is required" });
-    }
-
-    const video = await Video.findById(req.params.id);
-    if (!video) {
-      return res.status(404).json({ message: "Video not found" });
-    }
-
-    const response = await askQuestionAboutVideo(video, String(question).trim());
-    return res.json(response);
-  } catch (error) {
-    return res.status(500).json({ message: "Failed to answer question", error: error.message });
   }
 };
 
@@ -822,8 +785,7 @@ const seedSampleVideos = async (req, res) => {
       isTrending: item.isTrending,
       views: item.views,
       likes: [],
-      dislikes: [],
-      aiStatus: "pending"
+      dislikes: []
     }));
 
     await Video.insertMany(docs);
@@ -840,11 +802,7 @@ module.exports = {
   getTrendingVideos,
   getShortVideos,
   getVideoById,
-  getVideoAI,
-  getGeminiAIHealth,
   getPexelsAPIHealth,
-  analyzeVideoAI,
-  askVideoAI,
   toggleLikeVideo,
   toggleDislikeVideo,
   getShortMeta,

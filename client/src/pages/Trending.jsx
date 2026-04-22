@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import VideoCard from "../components/VideoCard";
+import { resolvePublicUrl } from "../utils/publicUrl";
 
 const apiBase = import.meta.env.VITE_API_URL || "/api";
-const serverUrl = import.meta.env.VITE_SERVER_URL || "";
 
 const Trending = () => {
   const [videos, setVideos] = useState([]);
@@ -36,7 +36,7 @@ const Trending = () => {
       ) : (
         <div className="profile-video-grid">
           {videos.map((video) => {
-            const videoSrc = video.videoUrl?.startsWith("http") ? video.videoUrl : `${serverUrl}${video.videoUrl || ""}`;
+            const videoSrc = resolvePublicUrl(video.videoUrl || video.url);
             return (
               <article key={video._id} className="profile-video-cell">
                 <VideoCard video={video} />

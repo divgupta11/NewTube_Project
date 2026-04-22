@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { resolvePublicUrl } from "../utils/publicUrl";
 
 const apiBase = import.meta.env.VITE_API_URL || "/api";
 
@@ -33,7 +34,7 @@ const Subscriptions = ({ user, onOpenLogin }) => {
       return;
     }
     load();
-  }, [user?._id]);
+  }, [user]);
 
   const unsubscribe = async (channelId) => {
     await axios.post(`${apiBase}/users/subscribe/${channelId}`, {}, { headers: authHeaders() });
@@ -58,7 +59,10 @@ const Subscriptions = ({ user, onOpenLogin }) => {
       <div className="subscription-grid">
         {channels.map((channel) => (
           <article key={channel._id} className="subscription-card">
-            <img src={channel.avatar || "https://i.pravatar.cc/120?img=5"} alt={channel.username} />
+            <img
+              src={resolvePublicUrl(channel.avatar) || "https://i.pravatar.cc/120?img=5"}
+              alt={channel.username}
+            />
             <div>
               <h3>{channel.username}</h3>
               <p>{channel.subscribersCount || 0} subscribers</p>

@@ -1,13 +1,16 @@
 const connectDB = require("../server/src/config/db");
 const app = require("../server/src/app");
 
-let isDbConnected = false;
+let dbConnectionPromise = null;
 
 module.exports = async (req, res) => {
-  if (!isDbConnected) {
-    await connectDB();
-    isDbConnected = true;
+  if (!dbConnectionPromise) {
+    dbConnectionPromise = connectDB().catch((error) => {
+      dbConnectionPromise = null;
+      throw error;
+    });
   }
 
+  await dbConnectionPromise;
   return app(req, res);
 };

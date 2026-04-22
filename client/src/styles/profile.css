@@ -253,6 +253,53 @@
   gap: 0.7rem;
 }
 
+.notification-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.notification-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.8rem;
+  background: linear-gradient(180deg, var(--surface), var(--surface-2));
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.notification-card.unread {
+  border-color: color-mix(in srgb, var(--yt-red) 45%, var(--border) 55%);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--yt-red) 10%, transparent);
+}
+
+.notification-card img {
+  width: 160px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.notification-card h3,
+.notification-card p {
+  margin: 0;
+}
+
+.notification-card a {
+  display: inline-flex;
+  margin-top: 0.55rem;
+  color: var(--yt-red);
+  font-weight: 600;
+}
+
+.notification-label {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-bottom: 0.25rem;
+}
+
 .subscription-card {
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -331,6 +378,16 @@
 
   .subscription-card {
     grid-template-columns: 1fr;
+  }
+
+  .notification-card {
+    grid-template-columns: 1fr;
+  }
+
+  .notification-card img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
   }
 
   .history-header {

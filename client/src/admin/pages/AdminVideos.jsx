@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MdDelete, MdEdit } from "react-icons/md";
 import { deleteVideoById, fetchVideos, updateVideoById } from "../adminApi";
 
@@ -12,7 +12,7 @@ const AdminVideos = () => {
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({ title: "", description: "" });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -24,11 +24,11 @@ const AdminVideos = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search]);
 
   useEffect(() => {
     load();
-  }, [page]);
+  }, [load]);
 
   const onSearch = (event) => {
     event.preventDefault();

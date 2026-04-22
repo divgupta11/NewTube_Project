@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MdBlock, MdDelete } from "react-icons/md";
 import { deleteUserById, fetchUsers, updateUserBlock } from "../adminApi";
 
@@ -10,7 +10,7 @@ const AdminUsers = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -22,11 +22,11 @@ const AdminUsers = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search]);
 
   useEffect(() => {
     load();
-  }, [page]);
+  }, [load]);
 
   const onSearch = (event) => {
     event.preventDefault();

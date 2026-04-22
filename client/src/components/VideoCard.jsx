@@ -1,7 +1,7 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AiOutlineUser } from "react-icons/ai";
-
-const serverUrl = import.meta.env.VITE_SERVER_URL || "";
+import { resolvePublicUrl } from "../utils/publicUrl";
 
 const formatViews = (views) => {
   const number = Number(views || 0);
@@ -18,9 +18,17 @@ const resolveChannel = (video) => {
 
 const VideoCard = ({ video }) => {
   const thumbnail = video.thumbnailUrl || video.thumbnail || "";
-  const thumb = thumbnail.startsWith("http") ? thumbnail : `${serverUrl}${thumbnail}`;
+  const thumb = resolvePublicUrl(thumbnail);
   const channel = resolveChannel(video);
   const channelName = channel?.username || channel?.name || video.channelName || "Channel";
+  const dateString = useMemo(() => {
+    if (!video.createdAt) {
+      return "Recently added";
+    }
+
+    const parsedDate = new Date(video.createdAt);
+    return Number.isNaN(parsedDate.getTime()) ? "Recently added" : parsedDate.toLocaleDateString();
+  }, [video.createdAt]);
 
   return (
     <Link to={`/watch/${video._id}`} className="video-card">
@@ -34,7 +42,7 @@ const VideoCard = ({ video }) => {
         <div className="video-meta">
           <h3>{video.title}</h3>
           <p>{channelName}</p>
-          <span>{formatViews(video.views)} | {new Date(video.createdAt || Date.now()).toLocaleDateString()}</span>
+          <span>{formatViews(video.views)} | {dateString}</span>
         </div>
       </div>
     </Link>

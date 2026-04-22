@@ -24,6 +24,7 @@ const toObjectId = (id) => {
 };
 
 const maxHistoryItems = 300;
+const maxNotifications = 50;
 
 const normalizeExternalHistoryItem = (item) => ({
   _id: item.videoId,
@@ -47,6 +48,19 @@ const normalizeExternalHistoryItem = (item) => ({
     avatar: "",
     subscribers: []
   }
+});
+
+const normalizeNotification = (item) => ({
+  _id: item._id,
+  channelId: item.channelId || null,
+  videoId: item.videoId || null,
+  channelName: item.channelName || "Channel",
+  videoTitle: item.videoTitle || "New upload",
+  thumbnailUrl: item.thumbnailUrl || "",
+  watchUrl: item.watchUrl || (item.videoId ? `/watch/${item.videoId}` : "/"),
+  isRead: Boolean(item.isRead),
+  createdAt: item.createdAt || null,
+  readAt: item.readAt || null
 });
 
 const buildCombinedHistory = (user, internalVideos = []) => {
@@ -164,7 +178,7 @@ const getChannelById = async (req, res) => {
 const getMyProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .select("username email avatar subscribers channelDescription subscribedChannels playlists likedVideos savedVideos watchHistory watchHistoryExternal")
+      .select("username email avatar subscribers channelDescription subscribedChannels playlists likedVideos savedVideos watchHistory watchHistoryExternal notifications")
       .populate({ path: "likedVideos", populate: { path: "user", select: "username avatar subscribers" } })
       .populate({ path: "savedVideos", populate: { path: "user", select: "username avatar subscribers" } })
       .populate({ path: "watchHistory", populate: { path: "user", select: "username avatar subscribers" } })
@@ -211,6 +225,8 @@ const getMyProfile = async (req, res) => {
     const likedVideos = (user.likedVideos || []).map(normalizeVideoOwner).filter(Boolean);
     const savedVideos = (user.savedVideos || []).map(normalizeVideoOwner).filter(Boolean);
     const watchHistory = buildCombinedHistory(user, user.watchHistory || []);
+    const notifications = (user.notifications || []).slice(0, maxNotifications).map(normalizeNotification);
+    const unreadNotifications = notifications.filter((item) => !item.isRead).length;
 
     return res.json({
       user: {
@@ -227,14 +243,17 @@ const getMyProfile = async (req, res) => {
         totalSavedVideos: savedVideos.length,
         totalPlaylists: playlists.length,
         totalHistoryItems: watchHistory.length,
-        totalSubscriptions: subscriptions.length
+        totalSubscriptions: subscriptions.length,
+        totalNotifications: notifications.length,
+        unreadNotifications
       },
       uploadedVideos: uploadedVideos.map(normalizeVideoOwner),
       likedVideos,
       playlists,
       savedVideos,
       watchHistory,
-      subscriptions
+      subscriptions,
+      notifications
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch profile", error: error.message });
@@ -582,6 +601,61 @@ const getMySubscriptions = async (req, res) => {
   }
 };
 
+const getMyNotifications = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("notifications");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const notifications = (user.notifications || []).slice(0, maxNotifications).map(normalizeNotification);
+    return res.json({
+      items: notifications,
+      unreadCount: notifications.filter((item) => !item.isRead).length
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch notifications", error: error.message });
+  }
+};
+
+const markNotificationsRead = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("notifications");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const notificationId = String(req.params.notificationId || "").trim();
+    let updated = false;
+
+    user.notifications = (user.notifications || []).map((item) => {
+      const isTarget = !notificationId || String(item._id) === notificationId;
+      if (!isTarget || item.isRead) {
+        return item;
+      }
+
+      updated = true;
+      item.isRead = true;
+      item.readAt = new Date();
+      return item;
+    });
+
+    if (updated) {
+      await user.save();
+    }
+
+    const notifications = (user.notifications || []).slice(0, maxNotifications).map(normalizeNotification);
+    return res.json({
+      items: notifications,
+      unreadCount: notifications.filter((item) => !item.isRead).length
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update notifications", error: error.message });
+  }
+};
+
 module.exports = {
   toggleSubscribe,
   getChannelById,
@@ -595,5 +669,7 @@ module.exports = {
   removeHistoryVideo,
   clearHistory,
   getMyHistory,
-  getMySubscriptions
+  getMySubscriptions,
+  getMyNotifications,
+  markNotificationsRead
 };

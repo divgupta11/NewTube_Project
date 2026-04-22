@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../api/client";
 import { useAuth } from "../context/AuthContext";
-
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "";
+import { resolvePublicUrl } from "../utils/publicUrl";
 
 const WatchPage = () => {
   const { id } = useParams();
@@ -83,11 +82,11 @@ const WatchPage = () => {
   return (
     <section className="watch-layout">
       <article className="watch-main">
-        <video className="watch-video" src={`${SERVER_URL}${video.videoUrl}`} controls />
+        <video className="watch-video" src={resolvePublicUrl(video.videoUrl)} controls />
         <h1 className="watch-title">{video.title}</h1>
         <div className="watch-meta-row">
           <Link className="channel-inline" to={`/channel/${video.user?._id}`}>
-            <img src={video.user?.avatar} alt={video.user?.username} />
+            <img src={resolvePublicUrl(video.user?.avatar)} alt={video.user?.username} />
             <span>{video.user?.username}</span>
           </Link>
           <button className="solid-btn" onClick={likeVideo} type="button">
@@ -114,7 +113,7 @@ const WatchPage = () => {
           <div className="comment-list">
             {comments.map((comment) => (
               <div className="comment-item" key={comment._id}>
-                <img src={comment.user?.avatar} alt={comment.user?.username} />
+                <img src={resolvePublicUrl(comment.user?.avatar)} alt={comment.user?.username} />
                 <div>
                   <p className="comment-user">{comment.user?.username}</p>
                   <p>{comment.text}</p>

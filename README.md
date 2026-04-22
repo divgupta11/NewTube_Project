@@ -29,14 +29,8 @@ PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/youtube_clone
 JWT_SECRET=replace_with_strong_secret
 CLIENT_URL=http://localhost:5173
-GEMINI_API_KEY=your_real_gemini_key
-GEMINI_MODEL=gemini-2.0-flash
+PEXELS_API_KEY=your_pexels_api_key_here
 ```
-
-Gemini integration notes:
-- `GEMINI_API_KEY` is required for real AI answers.
-- `GOOGLE_API_KEY` is also supported as an alias if `GEMINI_API_KEY` is empty.
-- Without a key, AI runs in `local-fallback` mode.
 
 ### Frontend (`client/.env`)
 
@@ -53,6 +47,7 @@ VITE_SERVER_URL=http://localhost:5000
 
 ```bash
 cd server
+npm install
 npm run dev
 ```
 
@@ -60,6 +55,7 @@ npm run dev
 
 ```bash
 cd client
+npm install
 npm run dev
 ```
 
@@ -70,20 +66,68 @@ Backend: `http://localhost:5000`
 
 Deploy from the repository root (`Youtube_clone`).
 
+### Project layout expected by Vercel
+
+- `client/` contains the Vite frontend
+- `server/` contains the Express app
+- `api/[...all].js` exposes the Express app as a serverless function
+
+### Build configuration
+
+- Install command: `npm run install:all`
+- Build command: `npm run build`
+- Output directory: `client/dist`
+
+### Required Vercel settings
+
+Add these in the Vercel dashboard under Project Settings > Environment Variables:
+
 Required Vercel environment variables:
 
 - `MONGO_URI`
 - `JWT_SECRET`
-- `CLIENT_URL` (set to your Vercel frontend URL, e.g. `https://your-app.vercel.app`)
+- `CLIENT_URL` (set to your deployed frontend URL, for example `https://your-app.vercel.app`)
 - `PEXELS_API_KEY`
 
 Optional environment variables:
 
-- `GEMINI_API_KEY`
-- `GOOGLE_API_KEY`
-- `GEMINI_MODEL`
-- `NOTEBOOKLM_ENDPOINT`
-- `NOTEBOOKLM_API_KEY`
+- `ADMIN_EMAIL`
+- `VITE_API_URL` (leave empty to use same-origin `/api`)
+- `VITE_SERVER_URL` (leave empty to use same-origin URLs for uploads)
+
+### Deploy steps
+
+1. Push the project to GitHub.
+2. Import the repository in Vercel.
+3. Set the root directory to the repository root.
+4. Add the environment variables above.
+5. Deploy.
+
+### Useful commands
+
+```bash
+npm run install:all
+npm run build
+npm start
+```
+
+For local frontend development:
+
+```bash
+cd client
+npm run dev
+```
+
+For local backend development:
+
+```bash
+cd server
+npm run dev
+```
+
+### Important note
+
+This project serves uploaded files from the app runtime. That works for the deployed demo flow, but for long-term persistent uploads you should move media storage to a cloud service such as Cloudinary, S3, or Vercel Blob.
 
 ## API Endpoints
 

@@ -12,7 +12,9 @@ const {
   removeHistoryVideo,
   clearHistory,
   getMyHistory,
-  getMySubscriptions
+  getMySubscriptions,
+  getMyNotifications,
+  markNotificationsRead
 } = require("../controllers/userController");
 const { protect, optionalProtect } = require("../middleware/authMiddleware");
 const profileUpload = require("../middleware/profileUploadMiddleware");
@@ -30,6 +32,9 @@ router.post("/history/watch", protect, recordWatchHistory);
 router.delete("/history", protect, clearHistory);
 router.delete("/history/:videoId", protect, removeHistoryVideo);
 router.get("/subscriptions", protect, getMySubscriptions);
+router.get("/notifications", protect, getMyNotifications);
+router.patch("/notifications/read", protect, markNotificationsRead);
+router.patch("/notifications/:notificationId/read", protect, markNotificationsRead);
 
 router.get("/channel/:channelId", optionalProtect, getChannelById);
 router.patch("/subscribe/:channelId", protect, toggleSubscribe);

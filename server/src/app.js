@@ -7,11 +7,13 @@ const videoRoutes = require("./routes/videoRoutes");
 const commentRoutes = require("./routes/commentRoutes");
 const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 const app = express();
 const uploadsDir = process.env.VERCEL
   ? path.join("/tmp", "uploads")
   : path.join(__dirname, "..", "uploads");
+const vercelDeploymentUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
 
 app.use(
   cors({
@@ -20,7 +22,10 @@ app.use(
         return callback(null, true);
       }
 
-      const allowedOrigins = [process.env.CLIENT_URL].filter(Boolean);
+      const allowedOrigins = [
+        process.env.CLIENT_URL,
+        vercelDeploymentUrl
+      ].filter(Boolean);
       const localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 
       if (allowedOrigins.includes(origin) || localhostPattern.test(origin)) {
@@ -47,9 +52,14 @@ app.use("/api/videos", videoRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use((err, req, res, next) => {
-  res.status(500).json({ message: err.message || "Server Error" });
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    message: err.message || "Server Error",
+    details: err.details || null
+  });
 });
 
 module.exports = app;

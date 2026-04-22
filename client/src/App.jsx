@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import axios from "axios";
 import Navbar from "./components/Navbar";
@@ -157,10 +157,10 @@ const App = () => {
     localStorage.removeItem("yt_user");
   };
 
-  const updateUserProfile = (updatedUser) => {
+  const updateUserProfile = useCallback((updatedUser) => {
     setUser(updatedUser);
     localStorage.setItem("yt_user", JSON.stringify(updatedUser));
-  };
+  }, []);
 
   return (
     <>

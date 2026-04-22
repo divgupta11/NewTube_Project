@@ -27,6 +27,7 @@ const AdminAnalytics = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
     const interval = setInterval(load, 30000);
     return () => clearInterval(interval);

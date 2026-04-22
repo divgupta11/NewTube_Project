@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import VideoCard from "../components/VideoCard";
 import { downloadAndStoreVideo, getDownloadedVideos, removeDownloadedVideo } from "../utils/downloads";
+import { resolvePublicUrl } from "../utils/publicUrl";
 
 const apiBase = import.meta.env.VITE_API_URL || "/api";
-const serverUrl = import.meta.env.VITE_SERVER_URL || "";
 
 const TABS = [
   { key: "videos", label: "Videos" },
@@ -14,6 +14,7 @@ const TABS = [
   { key: "history", label: "History" },
   { key: "saved", label: "Saved" },
   { key: "downloaded", label: "Downloaded" },
+  { key: "notifications", label: "Notifications" },
   { key: "subscriptions", label: "Subscriptions" }
 ];
 
@@ -23,9 +24,7 @@ const authHeaders = () => {
 };
 
 const resolveAsset = (url) => {
-  if (!url) return "";
-  if (url.startsWith("http")) return url;
-  return `${serverUrl}${url}`;
+  return resolvePublicUrl(url);
 };
 
 const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
@@ -43,6 +42,7 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
   const [downloadedVideos, setDownloadedVideos] = useState([]);
   const [watchHistory, setWatchHistory] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   const [playlistName, setPlaylistName] = useState("");
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
@@ -74,7 +74,7 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
     }
   };
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) {
       setError("Please login to open your profile.");
@@ -93,6 +93,7 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
       setSavedVideos(Array.isArray(data.savedVideos) ? data.savedVideos : []);
       setWatchHistory(Array.isArray(data.watchHistory) ? data.watchHistory : []);
       setSubscriptions(Array.isArray(data.subscriptions) ? data.subscriptions : []);
+      setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
       setDescriptionDraft(data.user?.channelDescription || "");
       setAvatarFile(null);
       setAvatarPreview("");
@@ -100,25 +101,23 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
       setError("");
 
       if (typeof onUserUpdated === "function" && data.user) {
-        const cached = {
-          ...(user || {}),
+        onUserUpdated({
           ...data.user,
           name: data.user.username,
           subscribersCount: data.user.subscribersCount
-        };
-        onUserUpdated(cached);
+        });
       }
     } catch (err) {
       setError(err.response?.data?.message || "Failed to load profile.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [onUserUpdated]);
 
   useEffect(() => {
     fetchProfile();
     hydrateDownloaded();
-  }, []);
+  }, [fetchProfile]);
 
   useEffect(() => () => {
     if (avatarPreview) {
@@ -253,10 +252,25 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
     }
   };
 
+  const markAllNotificationsRead = async () => {
+    setMessage("");
+    try {
+      const { data } = await axios.patch(`${apiBase}/users/notifications/read`, {}, { headers: authHeaders() });
+      setNotifications(Array.isArray(data.items) ? data.items : []);
+      setStats((prev) => ({
+        ...(prev || {}),
+        unreadNotifications: Number(data.unreadCount || 0)
+      }));
+      setMessage("Notifications marked as read.");
+    } catch (err) {
+      setMessage(err.response?.data?.message || "Failed to update notifications.");
+    }
+  };
+
   const handleDownloadVideo = async (video) => {
     setMessage("");
     try {
-      await downloadAndStoreVideo(video, serverUrl);
+      await downloadAndStoreVideo(video, window.location.origin);
       await hydrateDownloaded();
       setMessage("Video downloaded and added to Downloaded Videos.");
     } catch (err) {
@@ -380,7 +394,7 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
           {(avatarPreview || profileUser?.avatar) ? (
             <img
               className="profile-cover-avatar"
-              src={avatarPreview || profileUser?.avatar}
+              src={avatarPreview || resolveAsset(profileUser?.avatar)}
               alt={profileUser?.username || "Profile"}
             />
           ) : (
@@ -515,7 +529,10 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
           <div className="subscription-grid">
             {subscriptions.map((channel) => (
               <article key={channel._id} className="subscription-card">
-                <img src={channel.avatar || "https://i.pravatar.cc/120?img=4"} alt={channel.username} />
+                <img
+                  src={resolveAsset(channel.avatar) || "https://i.pravatar.cc/120?img=4"}
+                  alt={channel.username}
+                />
                 <div>
                   <h3>{channel.username}</h3>
                   <p>{channel.subscribersCount || 0} subscribers</p>
@@ -525,6 +542,35 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
               </article>
             ))}
             {!subscriptions.length && <p className="empty-text">No subscriptions yet.</p>}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "notifications" && (
+        <div>
+          <div className="history-header">
+            <h2 className="section-title">Upload Notifications</h2>
+            <button
+              className="profile-primary-btn profile-compact-btn history-clear-btn"
+              type="button"
+              onClick={markAllNotificationsRead}
+              disabled={!notifications.some((item) => !item.isRead)}
+            >
+              Mark all read
+            </button>
+          </div>
+          <div className="notification-grid">
+            {notifications.map((item) => (
+              <article key={item._id} className={`notification-card ${item.isRead ? "read" : "unread"}`}>
+                <img src={resolveAsset(item.thumbnailUrl)} alt={item.videoTitle} />
+                <div>
+                  <p className="notification-label">{item.channelName} uploaded a new video</p>
+                  <h3>{item.videoTitle}</h3>
+                  <a href={item.watchUrl}>Watch now</a>
+                </div>
+              </article>
+            ))}
+            {!notifications.length && <p className="empty-text">No notifications yet.</p>}
           </div>
         </div>
       )}

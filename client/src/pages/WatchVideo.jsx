@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import { MdThumbUpOffAlt, MdThumbDownOffAlt, MdShare, MdAutoAwesome } from "react-icons/md";
+import { MdThumbUpOffAlt, MdThumbDownOffAlt, MdShare } from "react-icons/md";
 import VideoCard from "../components/VideoCard";
-import VideoAIAssistant from "../components/VideoAIAssistant";
+import { resolvePublicUrl } from "../utils/publicUrl";
 
 const apiBase = import.meta.env.VITE_API_URL || "/api";
-const serverUrl = import.meta.env.VITE_SERVER_URL || "";
 
 const authHeaders = () => {
   const token = localStorage.getItem("token");
@@ -48,7 +47,6 @@ const WatchVideo = ({ user }) => {
   const [editDescription, setEditDescription] = useState("");
   const [manageMessage, setManageMessage] = useState("");
   const [playerError, setPlayerError] = useState("");
-  const [showGeminiAssistant, setShowGeminiAssistant] = useState(false);
 
   const isOwner = useMemo(() => {
     if (!user || !video) return false;
@@ -128,10 +126,6 @@ const WatchVideo = ({ user }) => {
 
     loadData();
   }, [videoId, user?._id]);
-
-  useEffect(() => {
-    setShowGeminiAssistant(false);
-  }, [videoId]);
 
   const submitComment = async (event) => {
     event.preventDefault();
@@ -334,7 +328,7 @@ const WatchVideo = ({ user }) => {
   }
 
   const rawVideoUrl = video.videoUrl || video.playbackUrl || video.url || "";
-  const videoUrl = rawVideoUrl.startsWith("http") ? rawVideoUrl : `${serverUrl}${rawVideoUrl}`;
+  const videoUrl = resolvePublicUrl(rawVideoUrl);
   const videoMimeType = getVideoMimeType(rawVideoUrl);
   const channelName = video.user?.username || video.user?.name || video.owner?.username || "Channel";
 
@@ -349,7 +343,7 @@ const WatchVideo = ({ user }) => {
             className="watch-player"
             controls
             preload="metadata"
-            poster={video.thumbnailUrl || video.thumbnail || ""}
+            poster={resolvePublicUrl(video.thumbnailUrl || video.thumbnail || "")}
             onError={() => setPlayerError("This video format/codec is not supported by your browser. Upload MP4 (H.264) or WEBM.")}
             onLoadedData={() => setPlayerError("")}
           >
@@ -363,15 +357,6 @@ const WatchVideo = ({ user }) => {
             <a href={videoUrl} target="_blank" rel="noreferrer">Open file</a>
           </p>
         )}
-
-        <button
-          className="gemini-toggle-btn ripple"
-          type="button"
-          onClick={() => setShowGeminiAssistant((prev) => !prev)}
-        >
-          <MdAutoAwesome size={18} />
-          {showGeminiAssistant ? "Hide Gemini" : "Ask Gemini About This Video"}
-        </button>
 
         {isEditing ? (
           <div className="edit-panel">
@@ -406,8 +391,6 @@ const WatchVideo = ({ user }) => {
         </div>
 
         {!isEditing && <p className="video-description-text">{video.description}</p>}
-
-        {showGeminiAssistant && <VideoAIAssistant videoId={videoId} />}
 
         <div className="watch-actions">
           <span>{video.views || 0} views</span>

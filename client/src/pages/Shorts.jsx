@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import {
@@ -9,9 +9,9 @@ import {
   MdBookmarkBorder,
   MdDescription
 } from "react-icons/md";
+import { resolvePublicUrl } from "../utils/publicUrl";
 
 const apiBase = import.meta.env.VITE_API_URL || "/api";
-const serverUrl = import.meta.env.VITE_SERVER_URL || "";
 
 const authHeaders = () => {
   const token = localStorage.getItem("token");
@@ -21,7 +21,7 @@ const authHeaders = () => {
 const resolveVideoUrl = (video) => {
   if (!video) return "";
   if (video.videoUrl) {
-    return video.videoUrl.startsWith("http") ? video.videoUrl : `${serverUrl}${video.videoUrl}`;
+    return resolvePublicUrl(video.videoUrl);
   }
 
   const files = Array.isArray(video.video_files) ? video.video_files : [];
@@ -52,7 +52,7 @@ const Shorts = () => {
 
   const activeVideo = preparedVideos[activeIndex];
 
-  const loadShortMeta = async (video) => {
+  const loadShortMeta = useCallback(async (video) => {
     if (!video) return;
     if (metaMap[video._id]) return;
 
@@ -65,7 +65,7 @@ const Shorts = () => {
         [video._id]: { likesCount: 0, dislikesCount: 0, commentsCount: 0, liked: false, disliked: false, description: video.description || "" }
       }));
     }
-  };
+  }, [metaMap]);
 
   const loadComments = async (videoId) => {
     try {
@@ -95,7 +95,7 @@ const Shorts = () => {
   useEffect(() => {
     if (!activeVideo) return;
     loadShortMeta(activeVideo);
-  }, [activeVideo?._id]);
+  }, [activeVideo, loadShortMeta]);
 
   useEffect(() => {
     if (!preparedVideos.length) return undefined;
@@ -276,7 +276,7 @@ const Shorts = () => {
                       playsInline
                       controls
                       preload="metadata"
-                      poster={video.thumbnailUrl}
+                      poster={resolvePublicUrl(video.thumbnailUrl)}
                       src={video.playableUrl}
                     />
 
@@ -284,7 +284,7 @@ const Shorts = () => {
                       <div className="shorts-author-row">
                         <img
                           className="shorts-author-avatar"
-                          src={video.user?.avatar || `https://i.pravatar.cc/80?u=${encodeURIComponent(video.user?.username || video._id)}`}
+                          src={resolvePublicUrl(video.user?.avatar) || `https://i.pravatar.cc/80?u=${encodeURIComponent(video.user?.username || video._id)}`}
                           alt={video.user?.username || "Creator"}
                         />
                         <p className="shorts-channel">{video.user?.username || "Channel"}</p>
