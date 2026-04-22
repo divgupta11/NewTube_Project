@@ -17,7 +17,7 @@
       "destination": "/api/uploads/:path*"
     },
     {
-      "source": "^/(?!api/|uploads/|assets/|favicon\\.svg|icons\\.svg)(.*)$",
+      "source": "/((?!api/|uploads/|assets/|favicon\\.svg|icons\\.svg).*)",
       "destination": "/index.html"
     }
   ]
