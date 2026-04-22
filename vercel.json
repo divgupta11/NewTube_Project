@@ -6,19 +6,19 @@
   "functions": {
     "api/[...all].js": {
       "maxDuration": 60
+    },
+    "api/uploads/[...path].js": {
+      "maxDuration": 60
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/uploads/(.*)",
-      "dest": "/api/uploads/$1"
+      "source": "/uploads/:path*",
+      "destination": "/api/uploads/:path*"
     },
     {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "^/(?!api/|uploads/|assets/|favicon\\.svg|icons\\.svg)(.*)$",
+      "destination": "/index.html"
     }
   ]
 }
