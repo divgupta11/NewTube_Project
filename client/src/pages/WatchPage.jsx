@@ -113,9 +113,13 @@ const WatchPage = () => {
           <div className="comment-list">
             {comments.map((comment) => (
               <div className="comment-item" key={comment._id}>
-                <img src={resolvePublicUrl(comment.user?.avatar)} alt={comment.user?.username} />
+                <Link className="channel-inline" to={`/channel/${comment.user?._id}`}>
+                  <img src={resolvePublicUrl(comment.user?.avatar)} alt={comment.user?.username} />
+                </Link>
                 <div>
-                  <p className="comment-user">{comment.user?.username}</p>
+                  <p className="comment-user">
+                    <Link to={`/channel/${comment.user?._id}`}>{comment.user?.username}</Link>
+                  </p>
                   <p>{comment.text}</p>
                   <button className="text-btn" onClick={() => likeComment(comment._id)} type="button">
                     Like ({comment.likes?.length || 0})

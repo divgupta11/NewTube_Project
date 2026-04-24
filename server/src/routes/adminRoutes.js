@@ -4,6 +4,8 @@ const {
   getOverview,
   getAnalytics,
   getUsers,
+  getUserById,
+  updateUserProfile,
   toggleBlockUser,
   deleteUser,
   getVideos,
@@ -13,6 +15,7 @@ const {
   deleteComment
 } = require("../controllers/adminController");
 const { adminProtect } = require("../middleware/adminMiddleware");
+const profileUpload = require("../middleware/profileUploadMiddleware");
 
 const router = express.Router();
 
@@ -22,6 +25,8 @@ router.get("/overview", adminProtect, getOverview);
 router.get("/analytics", adminProtect, getAnalytics);
 
 router.get("/users", adminProtect, getUsers);
+router.get("/user/:id", adminProtect, getUserById);
+router.patch("/users/:id", adminProtect, profileUpload.single("avatar"), updateUserProfile);
 router.patch("/users/:id/block", adminProtect, toggleBlockUser);
 router.delete("/users/:id", adminProtect, deleteUser);
 

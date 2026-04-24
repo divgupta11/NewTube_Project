@@ -16,6 +16,37 @@
   gap: 0.3rem;
 }
 
+.sidebar-ai-section {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.sidebar-ai-label {
+  margin: 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.side-ai-toggle {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  font: inherit;
+}
+
+.sidebar-ai-copy {
+  margin: 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .side-link {
   min-height: 44px;
   border-radius: 10px;
@@ -61,6 +92,15 @@
   opacity: 0;
   width: 0;
   overflow: hidden;
+}
+
+.sidebar.collapsed .sidebar-ai-section {
+  gap: 0.2rem;
+}
+
+.sidebar.collapsed .sidebar-ai-label,
+.sidebar.collapsed .sidebar-ai-copy {
+  display: none;
 }
 
 .sidebar-overlay {

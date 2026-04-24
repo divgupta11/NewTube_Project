@@ -7,6 +7,7 @@ import "./styles/sidebar.css";
 import "./styles/videos.css";
 import "./styles/profile.css";
 import "./styles/discover.css";
+import "./styles/notebook.css";
 
 createRoot(document.getElementById("root")).render(
   <BrowserRouter>

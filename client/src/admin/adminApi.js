@@ -39,6 +39,16 @@ export const fetchUsers = async (params) => {
   return data;
 };
 
+export const fetchUserById = async (id) => {
+  const { data } = await adminApi.get(`/user/${id}`);
+  return data;
+};
+
+export const updateUserById = async (id, payload) => {
+  const { data } = await adminApi.patch(`/users/${id}`, payload);
+  return data;
+};
+
 export const updateUserBlock = async (id, blocked) => {
   const { data } = await adminApi.patch(`/users/${id}/block`, { blocked });
   return data;

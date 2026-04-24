@@ -13,11 +13,13 @@ import History from "./pages/History";
 import Subscriptions from "./pages/Subscriptions";
 import Shorts from "./pages/Shorts";
 import Trending from "./pages/Trending";
+import ChannelPage from "./pages/ChannelPage";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import AdminLayout from "./admin/AdminLayout";
 import AdminLogin from "./admin/AdminLogin";
 import AdminDashboard from "./admin/pages/AdminDashboard";
 import AdminUsers from "./admin/pages/AdminUsers";
+import AdminUserProfile from "./admin/pages/AdminUserProfile";
 import AdminVideos from "./admin/pages/AdminVideos";
 import AdminComments from "./admin/pages/AdminComments";
 import AdminAnalytics from "./admin/pages/AdminAnalytics";
@@ -30,9 +32,11 @@ const apiBase = import.meta.env.VITE_API_URL || "/api";
 const UserAppShell = ({
   user,
   theme,
+  aiNotebookOpen,
   collapsed,
   mobileSidebarOpen,
   onToggleTheme,
+  onToggleNotebook,
   onMenuClick,
   onOpenLogin,
   onOpenSignup,
@@ -56,6 +60,8 @@ const UserAppShell = ({
         collapsed={collapsed}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={onCloseMobileSidebar}
+        aiNotebookOpen={aiNotebookOpen}
+        onToggleNotebook={onToggleNotebook}
       />
 
       <main className="main-content" onClick={() => mobileSidebarOpen && onCloseMobileSidebar()}>
@@ -63,9 +69,24 @@ const UserAppShell = ({
           <Route path="/" element={<Home />} />
           <Route path="/shorts" element={<Shorts />} />
           <Route path="/trending" element={<Trending />} />
+          <Route
+            path="/channel/:channelId"
+            element={<ChannelPage user={user} onOpenLogin={onOpenLogin} onUserUpdated={onUserUpdated} />}
+          />
           <Route path="/history" element={<History user={user} onOpenLogin={onOpenLogin} />} />
           <Route path="/subscriptions" element={<Subscriptions user={user} onOpenLogin={onOpenLogin} />} />
-          <Route path="/watch/:videoId" element={<WatchVideo user={user} />} />
+          <Route
+            path="/watch/:videoId"
+            element={
+              <WatchVideo
+                user={user}
+                theme={theme}
+                aiNotebookOpen={aiNotebookOpen}
+                onToggleNotebook={onToggleNotebook}
+                onToggleTheme={onToggleTheme}
+              />
+            }
+          />
           <Route path="/upload" element={<UploadVideo user={user} onOpenLogin={onOpenLogin} />} />
           <Route
             path="/profile"
@@ -81,6 +102,7 @@ const UserAppShell = ({
 const App = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [aiNotebookOpen, setAiNotebookOpen] = useState(() => localStorage.getItem("yt_ai_notebook") === "true");
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [theme, setTheme] = useState(() => {
@@ -99,6 +121,10 @@ const App = () => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("yt_theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem("yt_ai_notebook", String(aiNotebookOpen));
+  }, [aiNotebookOpen]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -177,6 +203,7 @@ const App = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="users" element={<AdminUsers />} />
+          <Route path="user/:userId" element={<AdminUserProfile />} />
           <Route path="videos" element={<AdminVideos />} />
           <Route path="comments" element={<AdminComments />} />
           <Route path="analytics" element={<AdminAnalytics />} />
@@ -188,9 +215,11 @@ const App = () => {
             <UserAppShell
               user={user}
               theme={theme}
+              aiNotebookOpen={aiNotebookOpen}
               collapsed={collapsed}
               mobileSidebarOpen={mobileSidebarOpen}
               onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+              onToggleNotebook={() => setAiNotebookOpen((prev) => !prev)}
               onMenuClick={handleMenuClick}
               onOpenLogin={openLogin}
               onOpenSignup={openSignup}

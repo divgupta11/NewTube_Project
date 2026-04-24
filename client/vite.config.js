@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   build: {
+    outDir: "../server/dist",
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
@@ -26,11 +27,11 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:5000",
+        target: "http://localhost:3000",
         changeOrigin: true
       },
       "/uploads": {
-        target: "http://localhost:5000",
+        target: "http://localhost:3000",
         changeOrigin: true
       }
     }

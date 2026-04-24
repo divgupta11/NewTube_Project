@@ -36,7 +36,7 @@ const AdminLogin = () => {
         <div className="admin-login-head">
           <span className="admin-logo-dot">N</span>
           <div>
-            <h1>NewTube Admin</h1>
+            <h1>NewTube LM Admin</h1>
             <p>Secure dashboard access</p>
           </div>
         </div>

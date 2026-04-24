@@ -1,5 +1,6 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { MdHome, MdSubscriptions, MdVideoLibrary, MdHistory, MdOutlineWhatshot, MdOutlineVideoLibrary } from "react-icons/md";
+import { FiBookOpen } from "react-icons/fi";
 
 const links = [
   { to: "/", icon: MdHome, label: "Home" },
@@ -10,7 +11,10 @@ const links = [
   { to: "/trending", icon: MdOutlineWhatshot, label: "Trending" }
 ];
 
-const Sidebar = ({ collapsed, mobileOpen, onCloseMobile }) => {
+const Sidebar = ({ collapsed, mobileOpen, onCloseMobile, aiNotebookOpen, onToggleNotebook }) => {
+  const location = useLocation();
+  const isWatchPage = location.pathname.startsWith("/watch/");
+
   return (
     <>
       <aside className={`sidebar ${collapsed ? "collapsed" : ""} ${mobileOpen ? "open" : ""}`}>
@@ -31,6 +35,23 @@ const Sidebar = ({ collapsed, mobileOpen, onCloseMobile }) => {
             );
           })}
         </nav>
+
+        {isWatchPage && onToggleNotebook && (
+          <section className="sidebar-ai-section">
+            <p className="sidebar-ai-label">AI Tools</p>
+            <button
+              type="button"
+              className={`side-link side-ai-toggle${aiNotebookOpen ? " active" : ""}`}
+              onClick={onToggleNotebook}
+            >
+              <span className="side-icon-wrap"><FiBookOpen className="side-icon" size={22} /></span>
+              <span className="side-text">AI Notebook</span>
+            </button>
+            <p className="sidebar-ai-copy side-text">
+              Open NotebookLM-style help for the current video only when you need it.
+            </p>
+          </section>
+        )}
       </aside>
       <div className={`sidebar-overlay ${mobileOpen ? "show" : ""}`} onClick={onCloseMobile} />
     </>

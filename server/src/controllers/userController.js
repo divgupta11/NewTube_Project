@@ -26,6 +26,27 @@ const toObjectId = (id) => {
 const maxHistoryItems = 300;
 const maxNotifications = 50;
 
+const getViewerPermissions = (viewer, targetUserId) => {
+  const viewerId = viewer?._id ? String(viewer._id) : "";
+  const targetId = String(targetUserId || "");
+  const canEdit = Boolean(viewerId && viewerId === targetId);
+  return {
+    isOwner: canEdit,
+    canEdit
+  };
+};
+
+const buildProfileSummary = async (userId) => {
+  const videos = await Video.find({ user: userId })
+    .populate("user", "username avatar subscribers")
+    .sort({ createdAt: -1 });
+
+  return {
+    totalVideosUploaded: videos.length,
+    uploadedVideos: videos.map(normalizeVideoOwner)
+  };
+};
+
 const normalizeExternalHistoryItem = (item) => ({
   _id: item.videoId,
   historyKey: `external:${item._id}`,
@@ -97,6 +118,96 @@ const buildCombinedHistory = (user, internalVideos = []) => {
     isExternal: false,
     source: "internal"
   }));
+};
+
+const buildProfilePayload = async (userId, viewer = null, options = {}) => {
+  const { includeEmail = false } = options;
+  const user = await User.findById(userId)
+    .select("username email avatar subscribers channelDescription subscribedChannels playlists likedVideos savedVideos watchHistory watchHistoryExternal notifications isBlocked isAdmin createdAt updatedAt")
+    .populate({ path: "likedVideos", populate: { path: "user", select: "username avatar subscribers" } })
+    .populate({ path: "savedVideos", populate: { path: "user", select: "username avatar subscribers" } })
+    .populate({ path: "watchHistory", populate: { path: "user", select: "username avatar subscribers" } })
+    .populate({ path: "playlists.videos", populate: { path: "user", select: "username avatar subscribers" } })
+    .populate("subscribedChannels", "username avatar subscribers");
+
+  if (!user) {
+    return null;
+  }
+
+  const uploadedVideos = await Video.find({ user: user._id })
+    .populate("user", "username avatar subscribers")
+    .sort({ createdAt: -1 });
+
+  const subscriptions = (user.subscribedChannels || []).map((channel) => ({
+    _id: channel._id,
+    username: channel.username,
+    avatar: channel.avatar,
+    subscribersCount: subscribersCount(channel.subscribers),
+    totalVideosUploaded: 0
+  }));
+
+  const subscriptionIds = subscriptions.map((item) => toObjectId(item._id)).filter(Boolean);
+
+  if (subscriptionIds.length) {
+    const uploadStats = await Video.aggregate([
+      { $match: { user: { $in: subscriptionIds } } },
+      { $group: { _id: "$user", total: { $sum: 1 } } }
+    ]);
+
+    const uploadsMap = new Map(uploadStats.map((item) => [String(item._id), Number(item.total || 0)]));
+    subscriptions.forEach((channel) => {
+      channel.totalVideosUploaded = uploadsMap.get(String(channel._id)) || 0;
+    });
+  }
+
+  const playlists = (user.playlists || []).map((playlist) => ({
+    _id: playlist._id,
+    name: playlist.name,
+    totalVideos: (playlist.videos || []).length,
+    videos: (playlist.videos || []).map(normalizeVideoOwner).filter(Boolean)
+  }));
+
+  const likedVideos = (user.likedVideos || []).map(normalizeVideoOwner).filter(Boolean);
+  const savedVideos = (user.savedVideos || []).map(normalizeVideoOwner).filter(Boolean);
+  const watchHistory = buildCombinedHistory(user, user.watchHistory || []);
+  const notifications = (user.notifications || []).slice(0, maxNotifications).map(normalizeNotification);
+  const unreadNotifications = notifications.filter((item) => !item.isRead).length;
+  const permissions = getViewerPermissions(viewer, user._id);
+  const isAdminViewer = Boolean(viewer?.isAdmin);
+
+  return {
+    user: {
+      _id: user._id,
+      username: user.username,
+      email: includeEmail ? user.email || "" : "",
+      avatar: user.avatar,
+      channelDescription: user.channelDescription || "",
+      subscribersCount: subscribersCount(user.subscribers),
+      isBlocked: Boolean(user.isBlocked),
+      isAdmin: Boolean(user.isAdmin),
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      ...permissions,
+      canManageAccount: permissions.canEdit || isAdminViewer
+    },
+    stats: {
+      totalVideosUploaded: uploadedVideos.length,
+      totalLikedVideos: likedVideos.length,
+      totalSavedVideos: savedVideos.length,
+      totalPlaylists: playlists.length,
+      totalHistoryItems: watchHistory.length,
+      totalSubscriptions: subscriptions.length,
+      totalNotifications: notifications.length,
+      unreadNotifications
+    },
+    uploadedVideos: uploadedVideos.map(normalizeVideoOwner),
+    likedVideos,
+    playlists,
+    savedVideos,
+    watchHistory,
+    subscriptions,
+    notifications
+  };
 };
 
 const toggleSubscribe = async (req, res) => {
@@ -175,86 +286,34 @@ const getChannelById = async (req, res) => {
   }
 };
 
-const getMyProfile = async (req, res) => {
+const getPublicProfileById = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id)
-      .select("username email avatar subscribers channelDescription subscribedChannels playlists likedVideos savedVideos watchHistory watchHistoryExternal notifications")
-      .populate({ path: "likedVideos", populate: { path: "user", select: "username avatar subscribers" } })
-      .populate({ path: "savedVideos", populate: { path: "user", select: "username avatar subscribers" } })
-      .populate({ path: "watchHistory", populate: { path: "user", select: "username avatar subscribers" } })
-      .populate({ path: "playlists.videos", populate: { path: "user", select: "username avatar subscribers" } })
-      .populate("subscribedChannels", "username avatar subscribers");
+    const profile = await buildProfilePayload(req.params.userId, req.user, { includeEmail: false });
 
-    if (!user) {
+    if (!profile) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const uploadedVideos = await Video.find({ user: user._id })
-      .populate("user", "username avatar subscribers")
-      .sort({ createdAt: -1 });
-
-    const subscriptions = (user.subscribedChannels || []).map((channel) => ({
-      _id: channel._id,
-      username: channel.username,
-      avatar: channel.avatar,
-      subscribersCount: subscribersCount(channel.subscribers),
-      totalVideosUploaded: 0
-    }));
-
-    const subscriptionIds = subscriptions.map((item) => toObjectId(item._id)).filter(Boolean);
-
-    if (subscriptionIds.length) {
-      const uploadStats = await Video.aggregate([
-        { $match: { user: { $in: subscriptionIds } } },
-        { $group: { _id: "$user", total: { $sum: 1 } } }
-      ]);
-
-      const uploadsMap = new Map(uploadStats.map((item) => [String(item._id), Number(item.total || 0)]));
-      subscriptions.forEach((channel) => {
-        channel.totalVideosUploaded = uploadsMap.get(String(channel._id)) || 0;
-      });
-    }
-
-    const playlists = (user.playlists || []).map((playlist) => ({
-      _id: playlist._id,
-      name: playlist.name,
-      totalVideos: (playlist.videos || []).length,
-      videos: (playlist.videos || []).map(normalizeVideoOwner).filter(Boolean)
-    }));
-
-    const likedVideos = (user.likedVideos || []).map(normalizeVideoOwner).filter(Boolean);
-    const savedVideos = (user.savedVideos || []).map(normalizeVideoOwner).filter(Boolean);
-    const watchHistory = buildCombinedHistory(user, user.watchHistory || []);
-    const notifications = (user.notifications || []).slice(0, maxNotifications).map(normalizeNotification);
-    const unreadNotifications = notifications.filter((item) => !item.isRead).length;
-
     return res.json({
-      user: {
-        _id: user._id,
-        username: user.username,
-        email: user.email || "",
-        avatar: user.avatar,
-        channelDescription: user.channelDescription || "",
-        subscribersCount: subscribersCount(user.subscribers)
-      },
-      stats: {
-        totalVideosUploaded: uploadedVideos.length,
-        totalLikedVideos: likedVideos.length,
-        totalSavedVideos: savedVideos.length,
-        totalPlaylists: playlists.length,
-        totalHistoryItems: watchHistory.length,
-        totalSubscriptions: subscriptions.length,
-        totalNotifications: notifications.length,
-        unreadNotifications
-      },
-      uploadedVideos: uploadedVideos.map(normalizeVideoOwner),
-      likedVideos,
-      playlists,
-      savedVideos,
-      watchHistory,
-      subscriptions,
-      notifications
+      ...profile,
+      isSubscribed: Boolean(
+        req.user && Array.isArray(req.user.subscribedChannels)
+        && req.user.subscribedChannels.some((id) => id.toString() === profile.user._id.toString())
+      )
     });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch public profile", error: error.message });
+  }
+};
+
+const getMyProfile = async (req, res) => {
+  try {
+    const profile = await buildProfilePayload(req.user._id, req.user, { includeEmail: true });
+
+    if (!profile) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    return res.json(profile);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch profile", error: error.message });
   }
@@ -659,7 +718,9 @@ const markNotificationsRead = async (req, res) => {
 module.exports = {
   toggleSubscribe,
   getChannelById,
+  getPublicProfileById,
   getMyProfile,
+  buildProfilePayload,
   updateProfileDetails,
   createPlaylist,
   addVideoToPlaylist,

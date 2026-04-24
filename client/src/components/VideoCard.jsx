@@ -21,6 +21,7 @@ const VideoCard = ({ video }) => {
   const thumb = resolvePublicUrl(thumbnail);
   const channel = resolveChannel(video);
   const channelName = channel?.username || channel?.name || video.channelName || "Channel";
+  const channelPath = channel?._id ? `/channel/${channel._id}` : null;
   const dateString = useMemo(() => {
     if (!video.createdAt) {
       return "Recently added";
@@ -31,21 +32,41 @@ const VideoCard = ({ video }) => {
   }, [video.createdAt]);
 
   return (
-    <Link to={`/watch/${video._id}`} className="video-card">
-      <div className="video-thumb-wrap">
-        <img className="video-thumb" src={thumb || "https://picsum.photos/640/360"} alt={video.title} />
-      </div>
+    <article className="video-card">
+      <Link to={`/watch/${video._id}`} className="video-card-main-link" aria-label={video.title}>
+        <div className="video-thumb-wrap">
+          <img className="video-thumb" src={thumb || "https://picsum.photos/640/360"} alt={video.title} />
+        </div>
+      </Link>
       <div className="video-card-content">
-        <span className="channel-avatar" aria-hidden="true">
-          <AiOutlineUser size={18} />
-        </span>
+        {channelPath ? (
+          <Link to={channelPath} className="channel-avatar channel-avatar-link" aria-label={channelName}>
+            {channel?.avatar ? (
+              <img src={resolvePublicUrl(channel.avatar)} alt={channelName} className="channel-avatar-image" />
+            ) : (
+              <AiOutlineUser size={18} />
+            )}
+          </Link>
+        ) : (
+          <span className="channel-avatar" aria-hidden="true">
+            <AiOutlineUser size={18} />
+          </span>
+        )}
         <div className="video-meta">
-          <h3>{video.title}</h3>
-          <p>{channelName}</p>
+          <h3>
+            <Link to={`/watch/${video._id}`}>{video.title}</Link>
+          </h3>
+          {channelPath ? (
+            <Link className="video-channel-link" to={channelPath}>
+              {channelName}
+            </Link>
+          ) : (
+            <p>{channelName}</p>
+          )}
           <span>{formatViews(video.views)} | {dateString}</span>
         </div>
       </div>
-    </Link>
+    </article>
   );
 };
 

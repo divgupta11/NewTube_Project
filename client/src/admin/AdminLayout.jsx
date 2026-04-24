@@ -46,7 +46,7 @@ const AdminLayout = () => {
           <button onClick={() => setCollapsed((prev) => !prev)} className="icon-btn" type="button">
             <MdMenu size={20} />
           </button>
-          <h1>NewTube Admin</h1>
+          <h1>NewTube LM Admin</h1>
         </div>
 
         <nav>

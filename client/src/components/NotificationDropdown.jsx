@@ -84,7 +84,14 @@ const NotificationDropdown = ({ onClose }) => {
               />
               <div className="notification-content">
                 <div className="notification-text">
-                  <span className="notification-channel">{n.channel?.username}</span> uploaded: {n.video?.title}
+                  {n.channel?._id ? (
+                    <Link className="notification-channel" to={`/channel/${n.channel._id}`}>
+                      {n.channel?.username}
+                    </Link>
+                  ) : (
+                    <span className="notification-channel">{n.channel?.username}</span>
+                  )}{" "}
+                  uploaded: {n.video?.title}
                 </div>
                 <div className="notification-time">
                   {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}

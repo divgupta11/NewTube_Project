@@ -1,0 +1,36 @@
+services:
+  app:
+    build:
+      context: .
+    container_name: youtube-clone-app
+    ports:
+      - "3000:3000"
+    env_file:
+      - server/.env
+    environment:
+      PORT: "3000"
+      CLIENT_URL: "http://localhost:3000"
+      MONGO_URI: "mongodb://mongo:27017/youtube_clone"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    container_name: youtube-clone-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  mongo_data:

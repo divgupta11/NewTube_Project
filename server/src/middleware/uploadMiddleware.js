@@ -2,9 +2,7 @@ const fs = require("fs");
 const multer = require("multer");
 const path = require("path");
 
-const baseUploadsDir = process.env.VERCEL
-  ? path.join("/tmp", "uploads")
-  : path.join(process.cwd(), "uploads");
+const baseUploadsDir = path.join(process.cwd(), "uploads");
 const videosDir = path.join(baseUploadsDir, "videos");
 const thumbnailsDir = path.join(baseUploadsDir, "thumbnails");
 

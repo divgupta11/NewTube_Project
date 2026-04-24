@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { MdThumbUpOffAlt, MdThumbDownOffAlt, MdShare } from "react-icons/md";
 import VideoCard from "../components/VideoCard";
+import NotebookAssistantPanel from "../components/notebook/NotebookAssistantPanel";
 import { resolvePublicUrl } from "../utils/publicUrl";
 
 const apiBase = import.meta.env.VITE_API_URL || "/api";
@@ -24,9 +25,10 @@ const getVideoMimeType = (url) => {
   return "";
 };
 
-const WatchVideo = ({ user }) => {
+const WatchVideo = ({ user, theme, aiNotebookOpen, onToggleTheme, onToggleNotebook }) => {
   const navigate = useNavigate();
   const { videoId } = useParams();
+  const videoRef = useRef(null);
   const [video, setVideo] = useState(null);
   const [loadingVideo, setLoadingVideo] = useState(true);
   const [videoError, setVideoError] = useState("");
@@ -55,6 +57,15 @@ const WatchVideo = ({ user }) => {
   }, [user, video]);
 
   const isExternalVideo = useMemo(() => Boolean(video?.isExternal), [video]);
+
+  const seekTo = (seconds) => {
+    const player = videoRef.current;
+    if (!player) return;
+    const target = Number(seconds || 0);
+    if (!Number.isFinite(target) || target < 0) return;
+    player.currentTime = target;
+    player.play?.().catch(() => {});
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -339,6 +350,7 @@ const WatchVideo = ({ user }) => {
           <p className="empty-text">Video source is missing for this upload.</p>
         ) : (
           <video
+            ref={videoRef}
             key={videoUrl}
             className="watch-player"
             controls
@@ -378,16 +390,22 @@ const WatchVideo = ({ user }) => {
 
         <div className="channel-row">
           <div>
-            <p className="channel-name">{channelName}</p>
+            {video.user?._id ? (
+              <p className="channel-name">
+                <Link to={`/channel/${video.user._id}`}>{channelName}</Link>
+              </p>
+            ) : (
+              <p className="channel-name">{channelName}</p>
+            )}
             <span className="channel-count">{subscribersCount} subscribers</span>
           </div>
           <div className="channel-actions">
             {!isOwner && (
-              <button className={`subscribe-btn ${subscribed ? "subscribed" : ""}`} onClick={handleSubscribe} type="button">
-                {subscribed ? "Subscribed" : "Subscribe"}
-              </button>
-            )}
-          </div>
+            <button className={`subscribe-btn ${subscribed ? "subscribed" : ""}`} onClick={handleSubscribe} type="button">
+              {subscribed ? "Subscribed" : "Subscribe"}
+            </button>
+          )}
+        </div>
         </div>
 
         {!isEditing && <p className="video-description-text">{video.description}</p>}
@@ -439,7 +457,13 @@ const WatchVideo = ({ user }) => {
             <div className="comment-list">
               {comments.map((comment) => (
                 <article key={comment._id} className="comment-item">
-                  <p className="comment-name">{comment.user?.username || comment.user?.name || "User"}</p>
+                  <p className="comment-name">
+                    {comment.user?._id ? (
+                      <Link to={`/channel/${comment.user._id}`}>{comment.user.username || comment.user.name || "User"}</Link>
+                    ) : (
+                      comment.user?.username || comment.user?.name || "User"
+                    )}
+                  </p>
                   <p>{comment.commentText || comment.text}</p>
                 </article>
               ))}
@@ -449,11 +473,23 @@ const WatchVideo = ({ user }) => {
       </div>
 
       <aside className="watch-side">
-        <h3>Recommended</h3>
-        <div className="watch-recommend-list">
-          {recommended.map((item) => (
-            <VideoCard key={item._id} video={item} />
-          ))}
+        {aiNotebookOpen ? (
+          <NotebookAssistantPanel
+            video={video}
+            theme={theme}
+            onToggleTheme={onToggleTheme}
+            onToggleNotebook={onToggleNotebook}
+            onSeekTo={seekTo}
+          />
+        ) : null}
+
+        <div className="watch-recommend-section">
+          <h3>Recommended</h3>
+          <div className="watch-recommend-list">
+            {recommended.map((item) => (
+              <VideoCard key={item._id} video={item} />
+            ))}
+          </div>
         </div>
       </aside>
     </section>

@@ -10,7 +10,8 @@
 }
 
 .video-card {
-  display: block;
+  display: grid;
+  grid-template-rows: auto 1fr;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -21,6 +22,11 @@
 
 .video-card:hover {
   transform: translateY(-4px);
+}
+
+.video-card-main-link {
+  display: block;
+  color: inherit;
 }
 
 .video-thumb-wrap {
@@ -52,6 +58,17 @@
   place-items: center;
 }
 
+.channel-avatar-link {
+  text-decoration: none;
+}
+
+.channel-avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .video-meta h3 {
   margin: 0 0 0.35rem;
   font-size: 0.98rem;
@@ -62,11 +79,27 @@
   color: var(--text);
 }
 
+.video-meta h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
 .video-meta p,
 .video-meta span {
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.video-channel-link {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.video-channel-link:hover,
+.video-meta h3 a:hover {
+  color: var(--yt-red);
 }
 
 
@@ -125,6 +158,16 @@
   background: #000;
 }
 
+.watch-side {
+  display: grid;
+  gap: 1rem;
+}
+
+.watch-recommend-section {
+  display: grid;
+  gap: 0.7rem;
+}
+
 .gemini-toggle-btn {
   margin-top: 0.8rem;
   border: 1px solid var(--border);
@@ -170,6 +213,17 @@
 .channel-name {
   margin: 0;
   font-weight: 700;
+}
+
+.channel-name a,
+.comment-name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.channel-name a:hover,
+.comment-name a:hover {
+  color: var(--yt-red);
 }
 
 .channel-count {

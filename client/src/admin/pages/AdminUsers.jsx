@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { MdBlock, MdDelete } from "react-icons/md";
 import { deleteUserById, fetchUsers, updateUserBlock } from "../adminApi";
 
 const AdminUsers = () => {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -101,6 +103,9 @@ const AdminUsers = () => {
                 </td>
                 <td>
                   <div className="action-row">
+                    <button className="icon-btn" onClick={() => navigate(`/admin/user/${user._id}`)} type="button" title="View profile">
+                      <span style={{ fontSize: "0.82rem", fontWeight: 700 }}>View</span>
+                    </button>
                     <button className="icon-btn" onClick={() => onToggleBlock(user)} type="button" title="Block/unblock">
                       <MdBlock size={18} />
                     </button>

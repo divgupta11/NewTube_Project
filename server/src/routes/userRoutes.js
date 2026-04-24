@@ -2,6 +2,7 @@ const express = require("express");
 const {
   toggleSubscribe,
   getChannelById,
+  getPublicProfileById,
   getMyProfile,
   updateProfileDetails,
   createPlaylist,
@@ -22,6 +23,7 @@ const profileUpload = require("../middleware/profileUploadMiddleware");
 const router = express.Router();
 
 router.get("/profile", protect, getMyProfile);
+router.get("/profile/:userId", optionalProtect, getPublicProfileById);
 router.patch("/profile", protect, profileUpload.single("avatar"), updateProfileDetails);
 router.post("/playlists", protect, createPlaylist);
 router.post("/playlists/:playlistId/videos/:videoId", protect, addVideoToPlaylist);

@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Video = require("../models/Video");
 const Comment = require("../models/Comment");
+const { buildProfilePayload } = require("./userController");
 
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "divyanshi15@gmail.com").toLowerCase();
 
@@ -271,6 +272,70 @@ const getUsers = async (req, res) => {
   }
 };
 
+const getUserById = async (req, res) => {
+  try {
+    const profile = await buildProfilePayload(req.params.id, req.user, { includeEmail: true });
+
+    if (!profile) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json({
+      ...profile,
+      user: {
+        ...profile.user,
+        email: profile.user.email || "",
+        isAdmin: true
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch user profile", error: error.message });
+  }
+};
+
+const updateUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const { username, email, channelDescription } = req.body || {};
+
+    if (typeof username === "string" && username.trim()) {
+      user.username = username.trim();
+    }
+
+    if (typeof email === "string" && email.trim()) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: user._id } }).select("_id");
+      if (existing) {
+        return res.status(409).json({ message: "Email already in use" });
+      }
+      user.email = normalizedEmail;
+    }
+
+    if (typeof channelDescription === "string") {
+      user.channelDescription = channelDescription.trim();
+    }
+
+    if (req.file?.filename) {
+      user.avatar = `/uploads/avatars/${req.file.filename}`;
+    }
+
+    await user.save();
+
+    const profile = await buildProfilePayload(user._id, req.user, { includeEmail: true });
+
+    return res.json({
+      message: "User profile updated",
+      ...profile
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update user profile", error: error.message });
+  }
+};
+
 const toggleBlockUser = async (req, res) => {
   try {
     const { blocked } = req.body;
@@ -455,6 +520,8 @@ module.exports = {
   getOverview,
   getAnalytics,
   getUsers,
+  getUserById,
+  updateUserProfile,
   toggleBlockUser,
   deleteUser,
   getVideos,

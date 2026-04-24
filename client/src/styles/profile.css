@@ -38,6 +38,10 @@
   border-color: color-mix(in srgb, var(--yt-red) 60%, var(--border) 40%);
 }
 
+.profile-avatar-view-only {
+  cursor: default;
+}
+
 .profile-header-main h1 {
   margin: 0;
 }
@@ -321,6 +325,15 @@
 
 .subscription-card h3 {
   margin: 0;
+}
+
+.subscription-card a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.subscription-card a:hover {
+  color: var(--yt-red);
 }
 
 .subscription-card p {

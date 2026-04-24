@@ -11,6 +11,7 @@ Full stack YouTube Clone built with React + Node/Express + MongoDB.
 - Watch page with likes and comments
 - Upload page (video + thumbnail via multer)
 - Channel page with subscribe/unsubscribe
+- NotebookLM-style AI assistant for video summaries, notes, and Q&A
 - REST APIs for auth, videos, comments, likes, and subscriptions
 
 ## Project Structure
@@ -25,11 +26,13 @@ Full stack YouTube Clone built with React + Node/Express + MongoDB.
 Copy `server/.env.example` to `server/.env` and update values:
 
 ```env
-PORT=5000
+PORT=3000
 MONGO_URI=mongodb://127.0.0.1:27017/youtube_clone
 JWT_SECRET=replace_with_strong_secret
-CLIENT_URL=http://localhost:5173
+CLIENT_URL=http://localhost:3000
 PEXELS_API_KEY=your_pexels_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4.1-mini
 ```
 
 ### Frontend (`client/.env`)
@@ -37,8 +40,8 @@ PEXELS_API_KEY=your_pexels_api_key_here
 Copy `client/.env.example` to `client/.env`:
 
 ```env
-VITE_API_URL=http://localhost:5000/api
-VITE_SERVER_URL=http://localhost:5000
+VITE_API_URL=http://localhost:3000/api
+VITE_SERVER_URL=http://localhost:3000
 ```
 
 ## Run Locally
@@ -60,48 +63,7 @@ npm run dev
 ```
 
 Frontend: `http://localhost:5173`
-Backend: `http://localhost:5000`
-
-## Deploy On Vercel
-
-Deploy from the repository root (`Youtube_clone`).
-
-### Project layout expected by Vercel
-
-- `client/` contains the Vite frontend
-- `server/` contains the Express app
-- `api/[...all].js` exposes the Express app as a serverless function
-
-### Build configuration
-
-- Install command: `npm run install:all`
-- Build command: `npm run build`
-- Output directory: `client/dist`
-
-### Required Vercel settings
-
-Add these in the Vercel dashboard under Project Settings > Environment Variables:
-
-Required Vercel environment variables:
-
-- `MONGO_URI`
-- `JWT_SECRET`
-- `CLIENT_URL` (set to your deployed frontend URL, for example `https://your-app.vercel.app`)
-- `PEXELS_API_KEY`
-
-Optional environment variables:
-
-- `ADMIN_EMAIL`
-- `VITE_API_URL` (leave empty to use same-origin `/api`)
-- `VITE_SERVER_URL` (leave empty to use same-origin URLs for uploads)
-
-### Deploy steps
-
-1. Push the project to GitHub.
-2. Import the repository in Vercel.
-3. Set the root directory to the repository root.
-4. Add the environment variables above.
-5. Deploy.
+Backend: `http://localhost:3000`
 
 ### Useful commands
 
@@ -110,6 +72,16 @@ npm run install:all
 npm run build
 npm start
 ```
+
+### Run With Docker
+
+For the frontend and backend to share the same port and still fetch data, run the app with MongoDB using Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+App URL: `http://localhost:3000`
 
 For local frontend development:
 
@@ -127,7 +99,7 @@ npm run dev
 
 ### Important note
 
-This project serves uploaded files from the app runtime. That works for the deployed demo flow, but for long-term persistent uploads you should move media storage to a cloud service such as Cloudinary, S3, or Vercel Blob.
+This project serves uploaded files from the app runtime. That works for the deployed demo flow, but for long-term persistent uploads you should move media storage to a cloud service such as Cloudinary, S3, or EFS.
 
 ## API Endpoints
 
@@ -143,6 +115,13 @@ This project serves uploaded files from the app runtime. That works for the depl
 - `GET /api/videos/channel/:channelId`
 - `POST /api/videos/upload` (protected, multipart: `video`, `thumbnail`)
 - `PATCH /api/videos/:id/like` (protected)
+
+### Notebook AI
+- `GET /api/notebook/:videoId`
+- `POST /api/notebook/:videoId/summary`
+- `POST /api/notebook/:videoId/question`
+- `POST /api/notebook/:videoId/notes`
+- `DELETE /api/notebook/:videoId/notes/:noteId`
 
 ### Comments
 - `GET /api/comments/:videoId`

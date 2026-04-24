@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import VideoCard from "../components/VideoCard";
 import { downloadAndStoreVideo, getDownloadedVideos, removeDownloadedVideo } from "../utils/downloads";
@@ -27,7 +28,7 @@ const resolveAsset = (url) => {
   return resolvePublicUrl(url);
 };
 
-const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
+const Profile = ({ user, onOpenLogin, onUserUpdated, profileUserId = null }) => {
   const [activeTab, setActiveTab] = useState("videos");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -43,12 +44,18 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
   const [watchHistory, setWatchHistory] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
   const [playlistName, setPlaylistName] = useState("");
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState("");
+
+  const isOwnProfile = !profileUserId || String(profileUserId) === String(user?._id || "");
+  const canEditProfile = Boolean(profileUser?.canEdit ?? isOwnProfile);
+  const canManageContent = isOwnProfile;
+  const canUseViewerActions = isOwnProfile;
 
   const savedSet = useMemo(() => new Set((savedVideos || []).map((video) => video._id)), [savedVideos]);
   const regularUploadedVideos = useMemo(
@@ -76,7 +83,7 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
   const fetchProfile = useCallback(async () => {
     const token = localStorage.getItem("token");
-    if (!token) {
+    if (!token && !profileUserId) {
       setError("Please login to open your profile.");
       setLoading(false);
       return;
@@ -84,7 +91,10 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
     try {
       setLoading(true);
-      const { data } = await axios.get(`${apiBase}/users/profile`, { headers: authHeaders() });
+      const url = profileUserId
+        ? `${apiBase}/users/profile/${profileUserId}`
+        : `${apiBase}/users/profile`;
+      const { data } = await axios.get(url, { headers: authHeaders() });
       setProfileUser(data.user || null);
       setStats(data.stats || null);
       setUploadedVideos(Array.isArray(data.uploadedVideos) ? data.uploadedVideos : []);
@@ -94,13 +104,14 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
       setWatchHistory(Array.isArray(data.watchHistory) ? data.watchHistory : []);
       setSubscriptions(Array.isArray(data.subscriptions) ? data.subscriptions : []);
       setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+      setIsSubscribed(Boolean(data.isSubscribed));
       setDescriptionDraft(data.user?.channelDescription || "");
       setAvatarFile(null);
       setAvatarPreview("");
       setSelectedPlaylistId((prev) => prev || data.playlists?.[0]?._id || "");
       setError("");
 
-      if (typeof onUserUpdated === "function" && data.user) {
+      if (isOwnProfile && typeof onUserUpdated === "function" && data.user) {
         onUserUpdated({
           ...data.user,
           name: data.user.username,
@@ -112,7 +123,7 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
     } finally {
       setLoading(false);
     }
-  }, [onUserUpdated]);
+  }, [onUserUpdated, profileUserId, user?._id]);
 
   useEffect(() => {
     fetchProfile();
@@ -127,6 +138,10 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
   const saveDescription = async () => {
     setMessage("");
+    if (!canEditProfile) {
+      setMessage("You cannot edit this profile.");
+      return;
+    }
     try {
       const formData = new FormData();
       formData.append("channelDescription", descriptionDraft);
@@ -168,6 +183,11 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
     event.preventDefault();
     setMessage("");
 
+    if (!canManageContent) {
+      setMessage("You can only create playlists on your own profile.");
+      return;
+    }
+
     if (!playlistName.trim()) {
       setMessage("Playlist name is required.");
       return;
@@ -190,6 +210,10 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
   };
 
   const addVideoToPlaylist = async (playlistId, videoId) => {
+    if (!canManageContent) {
+      setMessage("You can only modify playlists on your own profile.");
+      return;
+    }
     if (!playlistId) {
       setMessage("Create or select a playlist first.");
       return;
@@ -209,6 +233,10 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
   const removeVideoFromPlaylist = async (playlistId, videoId) => {
     setMessage("");
+    if (!canManageContent) {
+      setMessage("You can only modify playlists on your own profile.");
+      return;
+    }
     try {
       await axios.delete(`${apiBase}/users/playlists/${playlistId}/videos/${videoId}`, { headers: authHeaders() });
       await fetchProfile();
@@ -221,6 +249,10 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
   const toggleSaveVideo = async (videoId) => {
     setMessage("");
+    if (!canUseViewerActions) {
+      setMessage("Please open your own profile to manage saved videos.");
+      return;
+    }
     try {
       await axios.post(`${apiBase}/users/saved/${videoId}`, {}, { headers: authHeaders() });
       await fetchProfile();
@@ -232,6 +264,10 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
   const removeHistoryVideo = async (videoId) => {
     setMessage("");
+    if (!canManageContent) {
+      setMessage("You can only manage your own watch history.");
+      return;
+    }
     try {
       await axios.delete(`${apiBase}/users/history/${videoId}`, { headers: authHeaders() });
       await fetchProfile();
@@ -243,8 +279,18 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
   const toggleSubscribe = async (channelId) => {
     setMessage("");
+    if (!user) {
+      onOpenLogin?.();
+      return;
+    }
     try {
-      await axios.post(`${apiBase}/users/subscribe/${channelId}`, {}, { headers: authHeaders() });
+      const { data } = await axios.post(`${apiBase}/users/subscribe/${channelId}`, {}, { headers: authHeaders() });
+      if (typeof data?.subscribed === "boolean") {
+        setIsSubscribed(data.subscribed);
+      }
+      if (typeof data?.subscribersCount === "number") {
+        setProfileUser((prev) => (prev ? { ...prev, subscribersCount: data.subscribersCount } : prev));
+      }
       await fetchProfile();
       setMessage("Subscriptions updated.");
     } catch (err) {
@@ -254,6 +300,10 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
   const markAllNotificationsRead = async () => {
     setMessage("");
+    if (!canManageContent) {
+      setMessage("You can only manage notifications on your own profile.");
+      return;
+    }
     try {
       const { data } = await axios.patch(`${apiBase}/users/notifications/read`, {}, { headers: authHeaders() });
       setNotifications(Array.isArray(data.items) ? data.items : []);
@@ -269,6 +319,10 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
   const handleDownloadVideo = async (video) => {
     setMessage("");
+    if (!canUseViewerActions) {
+      setMessage("Please open your own profile to download videos from your library.");
+      return;
+    }
     try {
       await downloadAndStoreVideo(video, window.location.origin);
       await hydrateDownloaded();
@@ -280,6 +334,10 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
   const handleRemoveDownloaded = async (videoId) => {
     setMessage("");
+    if (!canUseViewerActions) {
+      setMessage("Please open your own profile to manage downloaded videos.");
+      return;
+    }
     try {
       await removeDownloadedVideo(videoId);
       await hydrateDownloaded();
@@ -293,6 +351,8 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
     if (!videos.length) {
       return <p className="empty-text">No videos found in this section.</p>;
     }
+
+    const showActions = canManageContent;
 
     return (
       <div className="profile-video-grid">
@@ -319,36 +379,38 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
               ) : (
                 <VideoCard video={video} />
               )}
-              <div className="profile-video-actions">
-                {!options.downloadedMode && (
-                  <button type="button" onClick={() => toggleSaveVideo(video._id)}>
-                    {isSaved ? "Remove Saved" : "Save"}
-                  </button>
-                )}
-                {!options.disablePlaylistAction && !options.downloadedMode && (
-                  <button
-                    type="button"
-                    onClick={() => addVideoToPlaylist(selectedPlaylist?._id, video._id)}
-                  >
-                    Add To Playlist
-                  </button>
-                )}
-                {options.playlistId && (
-                  <button type="button" onClick={() => removeVideoFromPlaylist(options.playlistId, video._id)}>
-                    Remove
-                  </button>
-                )}
-                {options.historyMode && (
-                  <button type="button" onClick={() => removeHistoryVideo(video.historyKey || video._id)}>
-                    Remove History
-                  </button>
-                )}
-                {options.downloadedMode ? (
-                  <button type="button" onClick={() => handleRemoveDownloaded(video._id)}>Remove Downloaded</button>
-                ) : (
-                  <button type="button" onClick={() => handleDownloadVideo({ ...video, videoUrl })}>Download Video</button>
-                )}
-              </div>
+              {showActions && (
+                <div className="profile-video-actions">
+                  {!options.downloadedMode && (
+                    <button type="button" onClick={() => toggleSaveVideo(video._id)}>
+                      {isSaved ? "Remove Saved" : "Save"}
+                    </button>
+                  )}
+                  {!options.disablePlaylistAction && !options.downloadedMode && (
+                    <button
+                      type="button"
+                      onClick={() => addVideoToPlaylist(selectedPlaylist?._id, video._id)}
+                    >
+                      Add To Playlist
+                    </button>
+                  )}
+                  {options.playlistId && (
+                    <button type="button" onClick={() => removeVideoFromPlaylist(options.playlistId, video._id)}>
+                      Remove
+                    </button>
+                  )}
+                  {options.historyMode && (
+                    <button type="button" onClick={() => removeHistoryVideo(video.historyKey || video._id)}>
+                      Remove History
+                    </button>
+                  )}
+                  {options.downloadedMode ? (
+                    <button type="button" onClick={() => handleRemoveDownloaded(video._id)}>Remove Downloaded</button>
+                  ) : (
+                    <button type="button" onClick={() => handleDownloadVideo({ ...video, videoUrl })}>Download Video</button>
+                  )}
+                </div>
+              )}
             </article>
           );
         })}
@@ -356,14 +418,14 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
     );
   };
 
-  if (!user) {
-    return (
-      <section className="profile-page">
-        <p className="empty-text">Please login to access your profile.</p>
-        <button className="profile-primary-btn" type="button" onClick={onOpenLogin}>Login</button>
-      </section>
-    );
-  }
+    if (!profileUserId && !user) {
+      return (
+        <section className="profile-page">
+          <p className="empty-text">Please login to access your profile.</p>
+          <button className="profile-primary-btn" type="button" onClick={onOpenLogin}>Login</button>
+        </section>
+      );
+    }
 
   if (loading) {
     return <p className="empty-text">Loading profile...</p>;
@@ -376,36 +438,55 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
   return (
     <section className="profile-page">
       <header className="profile-header-card">
-        <label className="profile-avatar-upload-shell" htmlFor="profile-avatar-input">
-          <input
-            id="profile-avatar-input"
-            className="profile-avatar-input"
-            type="file"
-            accept="image/png,image/jpeg,image/jpg,image/webp"
-            onChange={(event) => {
-              const file = event.target.files?.[0] || null;
-              if (avatarPreview) {
-                URL.revokeObjectURL(avatarPreview);
-              }
-              setAvatarFile(file);
-              setAvatarPreview(file ? URL.createObjectURL(file) : "");
-            }}
-          />
-          {(avatarPreview || profileUser?.avatar) ? (
-            <img
-              className="profile-cover-avatar"
-              src={avatarPreview || resolveAsset(profileUser?.avatar)}
-              alt={profileUser?.username || "Profile"}
+        {canEditProfile ? (
+          <label className="profile-avatar-upload-shell" htmlFor="profile-avatar-input">
+            <input
+              id="profile-avatar-input"
+              className="profile-avatar-input"
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              onChange={(event) => {
+                const file = event.target.files?.[0] || null;
+                if (avatarPreview) {
+                  URL.revokeObjectURL(avatarPreview);
+                }
+                setAvatarFile(file);
+                setAvatarPreview(file ? URL.createObjectURL(file) : "");
+              }}
             />
-          ) : (
-            <div className="profile-avatar-placeholder">
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M9 4.5 10.5 3h3L15 4.5h2.5A2.5 2.5 0 0 1 20 7v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17V7a2.5 2.5 0 0 1 2.5-2.5H9Zm3 4a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Zm0 2a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z" />
-              </svg>
-              <span>Upload Photo</span>
-            </div>
-          )}
-        </label>
+            {(avatarPreview || profileUser?.avatar) ? (
+              <img
+                className="profile-cover-avatar"
+                src={avatarPreview || resolveAsset(profileUser?.avatar)}
+                alt={profileUser?.username || "Profile"}
+              />
+            ) : (
+              <div className="profile-avatar-placeholder">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M9 4.5 10.5 3h3L15 4.5h2.5A2.5 2.5 0 0 1 20 7v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17V7a2.5 2.5 0 0 1 2.5-2.5H9Zm3 4a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Zm0 2a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z" />
+                </svg>
+                <span>Upload Photo</span>
+              </div>
+            )}
+          </label>
+        ) : (
+          <div className="profile-avatar-upload-shell profile-avatar-view-only" aria-hidden="true">
+            {(profileUser?.avatar) ? (
+              <img
+                className="profile-cover-avatar"
+                src={resolveAsset(profileUser?.avatar)}
+                alt={profileUser?.username || "Profile"}
+              />
+            ) : (
+              <div className="profile-avatar-placeholder">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M9 4.5 10.5 3h3L15 4.5h2.5A2.5 2.5 0 0 1 20 7v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17V7a2.5 2.5 0 0 1 2.5-2.5H9Zm3 4a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Zm0 2a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z" />
+                </svg>
+                <span>Profile Photo</span>
+              </div>
+            )}
+          </div>
+        )}
         <div className="profile-header-main">
           <h1>{profileUser?.username || "My Channel"}</h1>
           {profileUser?.email && <p className="profile-sub-line">{profileUser.email}</p>}
@@ -415,17 +496,32 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
             <span>{stats?.totalLikedVideos || 0} liked</span>
             <span>{stats?.totalPlaylists || 0} playlists</span>
           </div>
-          <div className="profile-description-box">
-            <textarea
-              rows="2"
-              placeholder="Add your channel description"
-              value={descriptionDraft}
-              onChange={(event) => setDescriptionDraft(event.target.value)}
-            />
-            <button type="button" className="profile-primary-btn profile-compact-btn" onClick={saveDescription}>
-              {avatarFile ? "Save Profile" : "Save Description"}
+          {!canEditProfile && profileUser?._id && user && (
+            <button
+              type="button"
+              className="profile-primary-btn profile-compact-btn"
+              onClick={() => toggleSubscribe(profileUser._id)}
+            >
+              {isSubscribed ? "Subscribed" : "Subscribe"}
             </button>
-          </div>
+          )}
+          {canEditProfile ? (
+            <div className="profile-description-box">
+              <textarea
+                rows="2"
+                placeholder="Add your channel description"
+                value={descriptionDraft}
+                onChange={(event) => setDescriptionDraft(event.target.value)}
+              />
+              <button type="button" className="profile-primary-btn profile-compact-btn" onClick={saveDescription}>
+                {avatarFile ? "Save Profile" : "Save Description"}
+              </button>
+            </div>
+          ) : (
+            <p className="profile-sub-line">
+              {profileUser?.channelDescription || "No channel description yet."}
+            </p>
+          )}
         </div>
       </header>
 
@@ -446,14 +542,14 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
       {activeTab === "videos" && (
         <div>
-          <h2 className="section-title">Your Uploaded Videos</h2>
+          <h2 className="section-title">{canEditProfile ? "Your Uploaded Videos" : "Uploaded Videos"}</h2>
           {renderVideoGrid(regularUploadedVideos)}
         </div>
       )}
 
       {activeTab === "shorts" && (
         <div>
-          <h2 className="section-title">Your Shorts</h2>
+          <h2 className="section-title">{canEditProfile ? "Your Shorts" : "Shorts"}</h2>
           {renderVideoGrid(uploadedShorts)}
         </div>
       )}
@@ -469,15 +565,17 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
         <div className="playlist-layout">
           <aside className="playlist-side">
             <h2 className="section-title">Playlists</h2>
-            <form className="playlist-create-form" onSubmit={createPlaylist}>
-              <input
-                type="text"
-                placeholder="Create new playlist"
-                value={playlistName}
-                onChange={(event) => setPlaylistName(event.target.value)}
-              />
-              <button className="profile-primary-btn" type="submit">Create</button>
-            </form>
+            {canManageContent && (
+              <form className="playlist-create-form" onSubmit={createPlaylist}>
+                <input
+                  type="text"
+                  placeholder="Create new playlist"
+                  value={playlistName}
+                  onChange={(event) => setPlaylistName(event.target.value)}
+                />
+                <button className="profile-primary-btn" type="submit">Create</button>
+              </form>
+            )}
             <div className="playlist-list">
               {playlists.map((playlist) => (
                 <button
@@ -496,7 +594,7 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
           <section className="playlist-main">
             <h2 className="section-title">{selectedPlaylist?.name || "Select a playlist"}</h2>
             {selectedPlaylist
-              ? renderVideoGrid(selectedPlaylist.videos || [], { playlistId: selectedPlaylist._id })
+              ? renderVideoGrid(selectedPlaylist.videos || [], { playlistId: canManageContent ? selectedPlaylist._id : null })
               : <p className="empty-text">Select a playlist to view its videos.</p>}
           </section>
         </div>
@@ -505,13 +603,13 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
       {activeTab === "history" && (
         <div>
           <h2 className="section-title">Watch History (Latest First)</h2>
-          {renderVideoGrid(watchHistory, { historyMode: true })}
+          {renderVideoGrid(watchHistory, { historyMode: canManageContent })}
         </div>
       )}
 
       {activeTab === "saved" && (
         <div>
-          <h2 className="section-title">Saved / Watch Later</h2>
+          <h2 className="section-title">{canEditProfile ? "Saved / Watch Later" : "Saved Videos"}</h2>
           {renderVideoGrid(savedVideos, { disablePlaylistAction: true })}
         </div>
       )}
@@ -525,20 +623,24 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
 
       {activeTab === "subscriptions" && (
         <div>
-          <h2 className="section-title">Subscribed Channels</h2>
+          <h2 className="section-title">{canEditProfile ? "Subscribed Channels" : "Subscriptions"}</h2>
           <div className="subscription-grid">
             {subscriptions.map((channel) => (
               <article key={channel._id} className="subscription-card">
-                <img
-                  src={resolveAsset(channel.avatar) || "https://i.pravatar.cc/120?img=4"}
-                  alt={channel.username}
-                />
+                <Link to={`/channel/${channel._id}`}>
+                  <img
+                    src={resolveAsset(channel.avatar) || "https://i.pravatar.cc/120?img=4"}
+                    alt={channel.username}
+                  />
+                </Link>
                 <div>
-                  <h3>{channel.username}</h3>
+                  <h3><Link to={`/channel/${channel._id}`}>{channel.username}</Link></h3>
                   <p>{channel.subscribersCount || 0} subscribers</p>
                   <p>{channel.totalVideosUploaded || 0} videos uploaded</p>
                 </div>
-                <button type="button" onClick={() => toggleSubscribe(channel._id)}>Unsubscribe</button>
+                {canManageContent && (
+                  <button type="button" onClick={() => toggleSubscribe(channel._id)}>Unsubscribe</button>
+                )}
               </article>
             ))}
             {!subscriptions.length && <p className="empty-text">No subscriptions yet.</p>}
@@ -549,12 +651,12 @@ const Profile = ({ user, onOpenLogin, onUserUpdated }) => {
       {activeTab === "notifications" && (
         <div>
           <div className="history-header">
-            <h2 className="section-title">Upload Notifications</h2>
+            <h2 className="section-title">{canEditProfile ? "Upload Notifications" : "Notifications"}</h2>
             <button
               className="profile-primary-btn profile-compact-btn history-clear-btn"
               type="button"
               onClick={markAllNotificationsRead}
-              disabled={!notifications.some((item) => !item.isRead)}
+              disabled={!canManageContent || !notifications.some((item) => !item.isRead)}
             >
               Mark all read
             </button>
