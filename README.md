@@ -2,6 +2,13 @@
 
 Full stack YouTube Clone built with React + Node/Express + MongoDB.
 
+The project is already structured to run the frontend and backend from the same Express port in production:
+
+- React builds into `server/dist`
+- Express serves the static frontend from `server/dist`
+- API routes stay under `/api`
+- The container exposes only one port, `3000`
+
 ## Features
 
 - JWT authentication (signup/login)
@@ -82,6 +89,31 @@ docker compose up --build
 ```
 
 App URL: `http://localhost:3000`
+
+## AWS / ECR Deployment
+
+This repo is suitable for a single Docker image in ECR. The backend serves both the API and the built frontend on the same port, so you can run one container in ECS or another AWS service and publish only `3000`.
+
+Recommended flow:
+
+1. Build the Docker image from the repo root.
+2. Push that image to ECR.
+3. Run it in ECS, App Runner, or EC2 with port `3000` exposed.
+4. Point `MONGO_URI`, `JWT_SECRET`, and `CLIENT_URL` to your production values.
+
+Architecture:
+
+```mermaid
+flowchart LR
+  Browser --> ALB["AWS Load Balancer / Public URL"]
+  ALB --> App["Single Docker Container\nExpress + React build"]
+  App --> API["/api routes"]
+  App --> Static["React app from /server/dist"]
+  App --> Mongo[(MongoDB)]
+  App --> Uploads["/uploads"]
+```
+
+If you keep frontend and backend inside the same container, the frontend should call the API with relative URLs like `/api`, which is already how this repo is configured by default.
 
 For local frontend development:
 
