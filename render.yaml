@@ -17,7 +17,7 @@ services:
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET
-        generateValue: true
+        value: "3aae74d1363f6a4f2bac8718b4c9cd17f87ad48a785ec0b9f7ca879fa0160b04"
       - key: PEXELS_API_KEY
         sync: false
       - key: OPENAI_API_KEY
