@@ -14,6 +14,8 @@ services:
     envVars:
       - key: PORT
         value: "3000"
+      - key: CLIENT_URL
+        value: "https://newtube-project.onrender.com"
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET

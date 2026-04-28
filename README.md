@@ -107,6 +107,8 @@ Render generates `JWT_SECRET` automatically from the blueprint. Uploaded files a
 
 If you later use a custom frontend domain, set `CLIENT_URL` to that origin. For the Render-hosted app, the backend already allows localhost and `*.onrender.com` origins.
 
+If your frontend and backend are separate Render services, the frontend build also needs `VITE_API_URL` pointing to the backend service URL, for example `https://your-backend-name.onrender.com/api`.
+
 ## AWS / ECR Deployment
 
 This repo is suitable for a single Docker image in ECR. The backend serves both the API and the built frontend on the same port, so you can run one container in ECS or another AWS service and publish only `3000`.
