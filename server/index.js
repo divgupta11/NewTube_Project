@@ -12,15 +12,15 @@ const PORT = process.env.PORT || 3000;
 
 const start = async () => {
   try {
-    if (!process.env.MONGO_URI) {
-      throw new Error("MONGO_URI is not set. Add your MongoDB connection string in Render.");
-    }
-
-    await connectDB();
-
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
+
+    try {
+      await connectDB();
+    } catch (dbError) {
+      console.error("MongoDB connection failed:", dbError.message);
+    }
   } catch (error) {
     console.error("Failed to start server:", error.message);
     process.exit(1);

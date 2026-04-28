@@ -1,7 +1,6 @@
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
-const getJwtSecret = require("../utils/jwtSecret");
 const User = require("../models/User");
 const Video = require("../models/Video");
 const Comment = require("../models/Comment");
@@ -93,7 +92,7 @@ const adminLogin = async (req, res) => {
       await user.save();
     }
 
-    const token = jwt.sign({ userId: user._id, role: "admin" }, getJwtSecret(), { expiresIn: "7d" });
+    const token = jwt.sign({ userId: user._id, role: "admin" }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
     return res.json({
       token,
