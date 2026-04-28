@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: youtube-clone
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    disk:
+      name: youtube-clone-uploads
+      mountPath: /app/server/uploads
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PEXELS_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

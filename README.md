@@ -90,6 +90,23 @@ docker compose up --build
 
 App URL: `http://localhost:3000`
 
+## Render Deployment
+
+This repo is ready for a single Render web service using the root `render.yaml`.
+
+1. Push the repo to GitHub.
+2. Create a new Render Web Service from the repo root.
+3. Let Render use the Dockerfile and blueprint in this repo.
+4. Set the required secrets when prompted:
+   - `MONGO_URI`
+   - `PEXELS_API_KEY`
+   - `OPENAI_API_KEY`
+   - `GEMINI_API_KEY`
+
+Render generates `JWT_SECRET` automatically from the blueprint. Uploaded files are stored on the persistent disk mounted at `/app/server/uploads`.
+
+If you later use a custom frontend domain, set `CLIENT_URL` to that origin. For the Render-hosted app, the backend already allows localhost and `*.onrender.com` origins.
+
 ## AWS / ECR Deployment
 
 This repo is suitable for a single Docker image in ECR. The backend serves both the API and the built frontend on the same port, so you can run one container in ECS or another AWS service and publish only `3000`.

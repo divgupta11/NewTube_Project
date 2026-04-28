@@ -28,7 +28,7 @@ ENV PORT=3000
 
 COPY --from=build /app/server ./server
 
-RUN mkdir -p /app/uploads
+RUN mkdir -p /app/server/uploads
 
 WORKDIR /app/server
 

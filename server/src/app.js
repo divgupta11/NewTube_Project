@@ -27,8 +27,9 @@ app.use(
         process.env.CLIENT_URL
       ].filter(Boolean);
       const localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+      const renderPattern = /^https?:\/\/([a-z0-9-]+\.)?onrender\.com$/i;
 
-      if (allowedOrigins.includes(origin) || localhostPattern.test(origin)) {
+      if (allowedOrigins.includes(origin) || localhostPattern.test(origin) || renderPattern.test(origin)) {
         return callback(null, true);
       }
 
