@@ -5,7 +5,7 @@ WORKDIR /app
 COPY client/package*.json ./client/
 COPY server/package*.json ./server/
 
-RUN npm install --prefix client && npm install --omit=dev --prefix server
+RUN npm ci --prefix client && npm ci --omit=dev --prefix server
 
 FROM node:20-alpine AS build
 
