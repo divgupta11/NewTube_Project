@@ -1,5 +1,6 @@
 const dotenv = require("dotenv");
 const path = require("path");
+const http = require("http");
 
 if (process.env.NODE_ENV !== "production") {
   dotenv.config({ path: path.join(__dirname, ".env") });
@@ -12,7 +13,18 @@ const PORT = process.env.PORT || 3000;
 
 const start = async () => {
   try {
-    app.listen(PORT, () => {
+    const server = http.createServer(app);
+
+    server.on("error", (error) => {
+      if (error.code === "EADDRINUSE") {
+        console.error(`Port ${PORT} is already in use. Stop the running backend or set a different PORT in server/.env.`);
+      } else {
+        console.error("Server error:", error.message);
+      }
+      process.exit(1);
+    });
+
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
 

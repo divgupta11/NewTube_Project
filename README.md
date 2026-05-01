@@ -80,16 +80,6 @@ npm run build
 npm start
 ```
 
-### Run With Docker
-
-For the frontend and backend to share the same port and still fetch data, run the app with MongoDB using Docker Compose:
-
-```bash
-docker compose up --build
-```
-
-App URL: `http://localhost:3000`
-
 ## Render Deployment
 
 This repo is ready for a single Render web service using the root `render.yaml`.
@@ -106,31 +96,6 @@ This repo is ready for a single Render web service using the root `render.yaml`.
 Render generates `JWT_SECRET` automatically from the blueprint. Uploaded files are stored on the persistent disk mounted at `/app/server/uploads`.
 
 If you later use a custom frontend domain, set `CLIENT_URL` to that origin. For the Render-hosted app, the backend already allows localhost origins and serves the frontend from the same service.
-
-## AWS / ECR Deployment
-
-This repo is suitable for a single Docker image in ECR. The backend serves both the API and the built frontend on the same port, so you can run one container in ECS or another AWS service and publish only `3000`.
-
-Recommended flow:
-
-1. Build the Docker image from the repo root.
-2. Push that image to ECR.
-3. Run it in ECS, App Runner, or EC2 with port `3000` exposed.
-4. Point `MONGO_URI`, `JWT_SECRET`, and `CLIENT_URL` to your production values.
-
-Architecture:
-
-```mermaid
-flowchart LR
-  Browser --> ALB["AWS Load Balancer / Public URL"]
-  ALB --> App["Single Docker Container\nExpress + React build"]
-  App --> API["/api routes"]
-  App --> Static["React app from /server/dist"]
-  App --> Mongo[(MongoDB)]
-  App --> Uploads["/uploads"]
-```
-
-If you keep frontend and backend inside the same container, the frontend should call the API with relative URLs like `/api`, which is already how this repo is configured by default.
 
 For local frontend development:
 
