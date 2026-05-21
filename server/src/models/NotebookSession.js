@@ -39,7 +39,8 @@ const notebookSessionSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     clientId: { type: String, default: "", index: true },
-    video: { type: mongoose.Schema.Types.ObjectId, ref: "Video", required: true, index: true },
+    video: { type: mongoose.Schema.Types.ObjectId, ref: "Video", default: null, index: true },
+    externalVideoId: { type: String, default: "", index: true },
     videoUrl: { type: String, default: "" },
     videoTitle: { type: String, default: "" },
     transcriptSnapshot: { type: String, default: "" },
@@ -74,5 +75,8 @@ notebookSessionSchema.index(
   { video: 1, clientId: 1 },
   { unique: false, partialFilterExpression: { clientId: { $type: "string" } } }
 );
+
+notebookSessionSchema.index({ externalVideoId: 1, user: 1 }, { unique: false });
+notebookSessionSchema.index({ externalVideoId: 1, clientId: 1 }, { unique: false });
 
 module.exports = mongoose.model("NotebookSession", notebookSessionSchema);

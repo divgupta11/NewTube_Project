@@ -3,6 +3,9 @@ const NotebookChunk = require("../models/NotebookChunk");
 const Video = require("../models/Video");
 const { summarizeVideo, answerQuestion, buildNotebookSource } = require("../services/notebookAiService");
 const { hashText } = require("../services/notebookRagService");
+const { fetchPexelsVideoById } = require("../services/pexelsService");
+
+const isMongoObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
 
 const getClientId = (req) => {
   const raw = String(req.headers["x-notebook-client-id"] || "").trim();
@@ -22,17 +25,47 @@ const getNotebookOwnerQuery = (req) => {
   return { clientId };
 };
 
+const resolveNotebookVideo = async (videoId) => {
+  if (isMongoObjectId(videoId)) {
+    const video = await Video.findById(videoId).populate("user", "username avatar subscribers");
+    if (video) {
+      return {
+        video,
+        sessionVideoQuery: { video: video._id, externalVideoId: "" },
+        sessionVideoUpdate: { video: video._id, externalVideoId: "" },
+        canPersistToVideo: true
+      };
+    }
+  }
+
+  if (String(videoId || "").startsWith("pexels-")) {
+    const rawId = String(videoId).replace("pexels-", "");
+    const externalVideo = await fetchPexelsVideoById(rawId);
+    if (externalVideo) {
+      return {
+        video: externalVideo,
+        sessionVideoQuery: { video: null, externalVideoId: externalVideo._id },
+        sessionVideoUpdate: { video: null, externalVideoId: externalVideo._id },
+        canPersistToVideo: false
+      };
+    }
+  }
+
+  return null;
+};
+
 const getNotebookSession = async (req, res) => {
   try {
     const { videoId } = req.params;
-    const video = await Video.findById(videoId).populate("user", "username avatar subscribers");
+    const resolved = await resolveNotebookVideo(videoId);
 
-    if (!video) {
+    if (!resolved) {
       return res.status(404).json({ message: "Video not found" });
     }
 
+    const { video, sessionVideoQuery } = resolved;
     const ownerQuery = getNotebookOwnerQuery(req);
-    const session = await NotebookSession.findOne({ video: video._id, ...ownerQuery }).lean();
+    const session = await NotebookSession.findOne({ ...sessionVideoQuery, ...ownerQuery }).lean();
     const { transcript } = buildNotebookSource(video);
 
     return res.json({
@@ -92,27 +125,30 @@ const saveSummaryToVideo = async (videoId, summary) => {
 const generateSummary = async (req, res) => {
   try {
     const { videoId } = req.params;
-    const video = await Video.findById(videoId).populate("user", "username avatar subscribers");
+    const resolved = await resolveNotebookVideo(videoId);
 
-    if (!video) {
+    if (!resolved) {
       return res.status(404).json({ message: "Video not found" });
     }
 
+    const { video, sessionVideoQuery, sessionVideoUpdate, canPersistToVideo } = resolved;
     const ownerQuery = getNotebookOwnerQuery(req);
     const transcriptHash = hashText(video.transcript || "");
-    const session = await NotebookSession.findOne({ video: video._id, ...ownerQuery });
+    const session = await NotebookSession.findOne({ ...sessionVideoQuery, ...ownerQuery });
     const summary = await summarizeVideo({
       video,
       session: session ? session.toObject() : null,
       mode: String(req.body?.mode || "detailed")
     });
-    const transcriptChunkCount = await NotebookChunk.countDocuments({ video: video._id, ...ownerQuery, transcriptHash });
+    const transcriptChunkCount = canPersistToVideo
+      ? await NotebookChunk.countDocuments({ video: video._id, ...ownerQuery, transcriptHash })
+      : 0;
 
     const nextSession = await NotebookSession.findOneAndUpdate(
-      { video: video._id, ...ownerQuery },
+      { ...sessionVideoQuery, ...ownerQuery },
       {
         $set: {
-          video: video._id,
+          ...sessionVideoUpdate,
           videoUrl: video.videoUrl || "",
           videoTitle: video.title || "",
           transcriptSnapshot: video.transcript || "",
@@ -134,10 +170,12 @@ const generateSummary = async (req, res) => {
           clientId: req.user?._id ? "" : (getClientId(req) || "anonymous")
         }
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     ).lean();
 
-    await saveSummaryToVideo(video._id, summary);
+    if (canPersistToVideo) {
+      await saveSummaryToVideo(video._id, summary);
+    }
 
     return res.json({
       summary,
@@ -166,31 +204,34 @@ const askQuestion = async (req, res) => {
       return res.status(400).json({ message: "Question is required" });
     }
 
-    const video = await Video.findById(videoId).populate("user", "username avatar subscribers");
-    if (!video) {
+    const resolved = await resolveNotebookVideo(videoId);
+    if (!resolved) {
       return res.status(404).json({ message: "Video not found" });
     }
 
+    const { video, sessionVideoQuery, sessionVideoUpdate, canPersistToVideo } = resolved;
     const ownerQuery = getNotebookOwnerQuery(req);
     const transcriptHash = hashText(video.transcript || "");
-    const existingSession = await NotebookSession.findOne({ video: video._id, ...ownerQuery });
+    const existingSession = await NotebookSession.findOne({ ...sessionVideoQuery, ...ownerQuery });
 
     const answer = await answerQuestion({
       video,
       session: existingSession ? existingSession.toObject() : null,
       question
     });
-    const transcriptChunkCount = await NotebookChunk.countDocuments({
-      video: video._id,
-      ...ownerQuery,
-      transcriptHash
-    });
+    const transcriptChunkCount = canPersistToVideo
+      ? await NotebookChunk.countDocuments({
+          video: video._id,
+          ...ownerQuery,
+          transcriptHash
+        })
+      : 0;
 
     const nextSession = await NotebookSession.findOneAndUpdate(
-      { video: video._id, ...ownerQuery },
+      { ...sessionVideoQuery, ...ownerQuery },
       {
         $set: {
-          video: video._id,
+          ...sessionVideoUpdate,
           videoUrl: video.videoUrl || "",
           videoTitle: video.title || "",
           transcriptSnapshot: video.transcript || "",
@@ -201,7 +242,6 @@ const askQuestion = async (req, res) => {
           lastProcessedAt: new Date()
         },
         $setOnInsert: {
-          messages: [],
           notes: [],
           user: req.user?._id || null,
           clientId: req.user?._id ? "" : (getClientId(req) || "anonymous")
@@ -224,7 +264,7 @@ const askQuestion = async (req, res) => {
           }
         }
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     ).lean();
 
     return res.json({
@@ -248,11 +288,12 @@ const addNote = async (req, res) => {
       return res.status(400).json({ message: "Note text is required" });
     }
 
-    const video = await Video.findById(videoId);
-    if (!video) {
+    const resolved = await resolveNotebookVideo(videoId);
+    if (!resolved) {
       return res.status(404).json({ message: "Video not found" });
     }
 
+    const { video, sessionVideoQuery, sessionVideoUpdate } = resolved;
     const ownerQuery = getNotebookOwnerQuery(req);
     const note = {
       text,
@@ -261,10 +302,10 @@ const addNote = async (req, res) => {
     };
 
     const session = await NotebookSession.findOneAndUpdate(
-      { video: video._id, ...ownerQuery },
+      { ...sessionVideoQuery, ...ownerQuery },
       {
         $set: {
-          video: video._id,
+          ...sessionVideoUpdate,
           videoUrl: video.videoUrl || "",
           videoTitle: video.title || "",
           transcriptSnapshot: video.transcript || "",
@@ -274,7 +315,6 @@ const addNote = async (req, res) => {
         },
         $setOnInsert: {
           messages: [],
-          notes: [],
           user: req.user?._id || null,
           clientId: req.user?._id ? "" : (getClientId(req) || "anonymous")
         },
@@ -282,7 +322,7 @@ const addNote = async (req, res) => {
           notes: { $each: [note], $slice: -80 }
         }
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     ).lean();
 
     return res.status(201).json({
@@ -297,20 +337,21 @@ const addNote = async (req, res) => {
 const deleteNote = async (req, res) => {
   try {
     const { videoId, noteId } = req.params;
-    const video = await Video.findById(videoId);
-    if (!video) {
+    const resolved = await resolveNotebookVideo(videoId);
+    if (!resolved) {
       return res.status(404).json({ message: "Video not found" });
     }
 
+    const { sessionVideoQuery } = resolved;
     const ownerQuery = getNotebookOwnerQuery(req);
     const session = await NotebookSession.findOneAndUpdate(
-      { video: video._id, ...ownerQuery },
+      { ...sessionVideoQuery, ...ownerQuery },
       {
         $pull: {
           notes: { _id: noteId }
         }
       },
-      { new: true }
+      { returnDocument: "after" }
     ).lean();
 
     return res.json({ session });

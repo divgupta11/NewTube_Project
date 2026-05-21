@@ -1,5 +1,5 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { MdMenu, MdSearch, MdVideoCall, MdNotifications, MdLightMode, MdDarkMode } from "react-icons/md";
 import { AiOutlineUser } from "react-icons/ai";
 import api from "../api/client";
@@ -61,7 +61,6 @@ const Navbar = ({ user, theme, onToggleTheme, onMenuClick, onOpenLogin, onOpenSi
   const [query, setQuery] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const dropdownRef = useRef(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -89,17 +88,6 @@ const Navbar = ({ user, theme, onToggleTheme, onMenuClick, onOpenLogin, onOpenSi
     const interval = setInterval(fetchUnreadCount, 60000);
     return () => clearInterval(interval);
   }, [user]);
-
-  useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setNotificationsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, []);
 
   const handleSearch = (event) => {
     event.preventDefault();
@@ -141,21 +129,23 @@ const Navbar = ({ user, theme, onToggleTheme, onMenuClick, onOpenLogin, onOpenSi
         </Link>
 
         {user && (
-          <div className="notifications-container" ref={dropdownRef}>
+          <div className="notifications-container">
             <button
-              className="nav-icon-btn"
+              className={`nav-icon-btn notification-trigger ${notificationsOpen ? "active" : ""}`}
               type="button"
-              aria-label="Notifications"
-              onClick={() => {
-                setNotificationsOpen(!notificationsOpen);
-                if (!notificationsOpen) setUnreadCount(0); // Optimistic clear
-              }}
+              aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+              aria-haspopup="dialog"
+              aria-expanded={notificationsOpen}
+              onClick={() => setNotificationsOpen((open) => !open)}
             >
               <MdNotifications size={24} />
               {unreadCount > 0 && <span className="notification-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>}
             </button>
             {notificationsOpen && (
-              <NotificationDropdown onClose={() => setNotificationsOpen(false)} />
+              <NotificationDropdown
+                onClose={() => setNotificationsOpen(false)}
+                onUnreadChange={setUnreadCount}
+              />
             )}
           </div>
         )}

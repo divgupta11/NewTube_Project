@@ -6,6 +6,8 @@ const {
   buildContextFromChunks
 } = require("./notebookRagService");
 const MAX_SOURCE_CHARS = 18000;
+let geminiDisabledForProcess = false;
+let openAiDisabledForProcess = false;
 
 const clampText = (value, maxChars = MAX_SOURCE_CHARS) => {
   const text = String(value || "").trim();
@@ -398,7 +400,7 @@ const localAnswer = ({ video, question }) => {
 
 const structuredNotebookCall = async ({ schemaName, schema, prompt, fallbackFn }) => {
   try {
-    if (process.env.GEMINI_API_KEY) {
+    if (process.env.GEMINI_API_KEY && !geminiDisabledForProcess) {
       const payload = await callGemini({
         instructions: `${buildBaseInstructions()} Return only valid JSON with no markdown.`,
         inputText: prompt
@@ -409,8 +411,17 @@ const structuredNotebookCall = async ({ schemaName, schema, prompt, fallbackFn }
         __provider: "gemini"
       };
     }
+  } catch (error) {
+    const message = String(error?.message || "");
+    geminiDisabledForProcess = /api key|leaked|invalid|permission|unauthorized/i.test(message);
+    console.error(
+      `Notebook Gemini call failed for ${schemaName}:`,
+      geminiDisabledForProcess ? "Gemini API key is invalid or rejected; using local fallback." : message
+    );
+  }
 
-    if (process.env.OPENAI_API_KEY) {
+  try {
+    if (process.env.OPENAI_API_KEY && !openAiDisabledForProcess) {
       const payload = await callOpenAI({
         instructions: buildBaseInstructions(),
         schemaName,
@@ -434,7 +445,12 @@ const structuredNotebookCall = async ({ schemaName, schema, prompt, fallbackFn }
       };
     }
   } catch (error) {
-    console.error(`Notebook model call failed for ${schemaName}:`, error.message);
+    const message = String(error?.message || "");
+    openAiDisabledForProcess = /api key|invalid|permission|unauthorized/i.test(message);
+    console.error(
+      `Notebook OpenAI call failed for ${schemaName}:`,
+      openAiDisabledForProcess ? "OpenAI API key is invalid or rejected; using local fallback." : message
+    );
   }
 
   return {

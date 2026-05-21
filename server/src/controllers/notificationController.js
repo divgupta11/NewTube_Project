@@ -1,4 +1,5 @@
 const Notification = require("../models/Notification");
+const User = require("../models/User");
 
 const getMyNotifications = async (req, res) => {
   try {
@@ -41,8 +42,26 @@ const markAllAsRead = async (req, res) => {
   }
 };
 
+const clearMyNotifications = async (req, res) => {
+  try {
+    const [notificationResult, userResult] = await Promise.all([
+      Notification.deleteMany({ user: req.user._id }),
+      User.updateOne({ _id: req.user._id }, { $set: { notifications: [] } })
+    ]);
+
+    return res.json({
+      message: "Notifications cleared",
+      deletedCount: notificationResult.deletedCount || 0,
+      embeddedCleared: userResult.modifiedCount > 0
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to clear notifications", error: error.message });
+  }
+};
+
 module.exports = {
   getMyNotifications,
   markNotificationAsRead,
-  markAllAsRead
+  markAllAsRead,
+  clearMyNotifications
 };
